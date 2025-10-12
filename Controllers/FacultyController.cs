@@ -107,6 +107,7 @@ namespace TutorLiveMentor.Controllers
             if (TempData["FacultyId"] == null) return RedirectToAction("Login");
             int facultyId = (int)TempData["FacultyId"];
             var subjects = _context.AssignedSubjects
+                .Include(a => a.Subject)
                 .Where(x => x.FacultyId == facultyId)
                 .ToList();
             TempData.Keep("FacultyId");
@@ -120,6 +121,7 @@ namespace TutorLiveMentor.Controllers
 
             int facultyId = (int)TempData["FacultyId"];
             var subjects = _context.AssignedSubjects
+                .Include(a => a.Subject)
                 .Where(x => x.FacultyId == facultyId)
                 .ToList();
 
@@ -130,8 +132,8 @@ namespace TutorLiveMentor.Controllers
             if (!string.IsNullOrEmpty(subject))
             {
                 var validSubjectYears = subjects
-                    .Where(subj => subj.SubjectName == subject)
-                    .Select(subj => subj.Year)
+                    .Where(subj => subj.Subject.Name == subject)
+                    .Select(subj => subj.Year.ToString())
                     .ToList();
 
                 students = _context.Students

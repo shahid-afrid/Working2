@@ -16,8 +16,8 @@
         {
             foreach (var s in facultySubjects)
             {
-                string sel = selectedSubject == s.SubjectName ? "selected" : "";
-                @:<option value="@s.SubjectName" @sel>@s.Year - @s.SubjectName</option>
+                string sel = selectedSubject == s.Subject.Name ? "selected" : "";
+                @:<option value="@s.Subject.Name" @sel>@s.Year - @s.Subject.Name</option>
             }
         }
     </select>

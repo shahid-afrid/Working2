@@ -21,12 +21,12 @@
     @Html.ValidationMessageFor(m => m.Year)
     <br />
 
-    <label>Branch</label>
-    @Html.DropDownListFor(m => m.Branch, new SelectList(new[] {
+    <label>Department</label>
+    @Html.DropDownListFor(m => m.Department, new SelectList(new[] {
     "CSE","CSE(DS)","CSE(AIML)","CSE(CS)","CSE(BS)",
         "ECE","EEE","MECH","CIVIL"
-    }), "Select Branch", new { @required = "required" })
-@Html.ValidationMessageFor(m => m.Branch)
+    }), "Select Department", new { @required = "required" })
+@Html.ValidationMessageFor(m => m.Department)
 <br />
 
 <label>Email</label>

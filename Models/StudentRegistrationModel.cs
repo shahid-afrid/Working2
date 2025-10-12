@@ -15,7 +15,7 @@ namespace TutorLiveMentor.Models
         public string Year { get; set; }
 
         [Required]
-        public string Branch { get; set; }
+        public string Department { get; set; }
 
         [Required]
         [RegularExpression(@"^[a-zA-Z0-9._%+-]+@rgmcet\.edu\.in$", ErrorMessage = "Email must end with @rgmcet.edu.in")]

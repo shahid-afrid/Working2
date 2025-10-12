@@ -43,7 +43,7 @@ namespace TutorLiveMentor.Controllers
                     FullName = model.FullName,
                     RegdNumber = model.RegdNumber,
                     Year = model.Year,
-                    Branch = model.Branch,
+                    Department = model.Department,
                     Email = model.Email,
                     Password = model.Password
                 };
@@ -116,7 +116,7 @@ namespace TutorLiveMentor.Controllers
 
                 student.FullName = model.FullName;
                 student.Year = model.Year;
-                student.Branch = model.Branch;
+                student.Department = model.Department;
 
                 _context.Students.Update(student);
                 await _context.SaveChangesAsync();

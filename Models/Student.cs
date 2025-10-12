@@ -17,7 +17,7 @@ namespace TutorLiveMentor.Models
         public string Year { get; set; }
 
         [Required]
-        public string Branch { get; set; }
+        public string Department { get; set; }
 
         [Required]
         [EmailAddress]
@@ -27,6 +27,8 @@ namespace TutorLiveMentor.Models
         public string Password { get; set; }
 
         public string SelectedSubject { get; set; } = string.Empty;
+        public int? AssignedSubjectId { get; set; }
+        public virtual AssignedSubject AssignedSubject { get; set; }
 
     }
 }
