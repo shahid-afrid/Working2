@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TutorLiveMentor.Models;
+using System.Text;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -25,6 +27,13 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
 }
+
+// Ensure proper UTF-8 encoding for responses
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("Content-Type", "text/html; charset=utf-8");
+    await next();
+});
 
 app.UseStaticFiles();
 app.UseRouting();

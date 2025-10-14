@@ -1,0 +1,325 @@
+@using TutorLiveMentor.Models
+@using TutorLiveMentor.Controllers
+@using Microsoft.AspNetCore.Mvc
+@using System.Linq
+@model TutorLiveMentor.Controllers.StudentDashboardViewModel
+
+@{
+    ViewData["Title"] = "Select Subject";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Select Subject - TutorLiveMentor - v@DateTime.Now.Ticks</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        :root {
+            --royal-blue: #274060;
+            --warm-gold: #FFC857;
+            --cream: #F9FAF2;
+            --slate: #CED3DC;
+            --card-shadow: rgba(39,64,96,0.13);
+            --success-green: #28a745;
+            --error-red: #dc3545;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+            font-family: 'Montserrat', Arial, sans-serif;
+            background: linear-gradient(rgba(249, 250, 242, 0.15), rgba(255, 200, 87, 0.10)),
+            url('@Url.Content("~/images/RGMCET-BACKGROUND.jpg")') center center/cover no-repeat fixed;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+            display: block;
+            background: linear-gradient(135deg, var(--cream) 60%, var(--warm-gold) 100%);
+            opacity: 0.20;
+            pointer-events: none;
+        }
+
+        .main-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .nav-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(249,250,242,0.9);
+            color: var(--royal-blue);
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            border: 2px solid var(--slate);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .nav-link:hover {
+            background: var(--warm-gold);
+            color: var(--royal-blue);
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+
+        .dashboard-header {
+            background: rgba(249,250,242,0.92);
+            box-shadow: 0 8px 32px var(--card-shadow);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            margin-bottom: 40px;
+            border: 2px solid var(--slate);
+        }
+
+        .dashboard-header h2 {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--royal-blue);
+            margin: 0;
+            letter-spacing: 1.2px;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .alert-success {
+            color: var(--success-green);
+            background-color: rgba(40, 167, 69, 0.1);
+            border-color: var(--success-green);
+        }
+
+        .alert-danger {
+            color: var(--error-red);
+            background-color: rgba(220, 53, 69, 0.1);
+            border-color: var(--error-red);
+        }
+
+        .subject-section {
+            background: rgba(249,250,242,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--slate);
+            box-shadow: 0 8px 32px var(--card-shadow);
+        }
+
+        .subject-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--royal-blue);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .subject-description {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 25px;
+        }
+
+        .faculty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .faculty-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid var(--slate);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .faculty-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--warm-gold);
+            box-shadow: 0 8px 25px var(--card-shadow);
+        }
+
+        .faculty-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+            color: var(--royal-blue);
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .faculty-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: var(--royal-blue);
+            margin-bottom: 10px;
+        }
+
+        .enrollment-count {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .enroll-btn {
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--warm-gold) 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .enroll-btn:hover {
+            background: linear-gradient(135deg, var(--warm-gold) 0%, var(--royal-blue) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 200, 87, 0.4);
+        }
+
+        .enroll-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .enroll-btn:disabled:hover {
+            background: #6c757d;
+            transform: none;
+        }
+
+        .no-subjects {
+            background: rgba(249,250,242,0.95);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--slate);
+            box-shadow: 0 8px 32px var(--card-shadow);
+        }
+
+        .no-subjects h3 {
+            color: var(--royal-blue);
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .no-subjects p {
+            color: #666;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <a href="@Url.Action("MainDashboard", "Student")" class="nav-link">
+        <i class="fas fa-home"></i> Back to Dashboard
+    </a>
+    
+    <div class="main-container">
+        <div class="dashboard-header">
+            <h2><i class="fas fa-book"></i> Select Subject</h2>
+        </div>
+
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success">
+                @TempData["SuccessMessage"]
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger">
+                @TempData["ErrorMessage"]
+            </div>
+        }
+
+        @if (Model != null && Model.AvailableSubjectsGrouped != null && Model.AvailableSubjectsGrouped.Any())
+        {
+            @foreach (var subjectGroup in Model.AvailableSubjectsGrouped)
+            {
+                <div class="subject-section">
+                    <h3 class="subject-title">
+                        <i class="fas fa-book-open"></i> @subjectGroup.Key
+                    </h3>
+                    <p class="subject-description">Choose one faculty for this subject:</p>
+                    
+                    <div class="faculty-grid">
+                        @foreach (var assignedSubject in subjectGroup)
+                        {
+                            <div class="faculty-card">
+                                <div class="faculty-icon">
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                </div>
+                                <h6 class="faculty-name">@assignedSubject.Faculty.Name</h6>
+                                <p class="enrollment-count">
+                                    Students: @assignedSubject.SelectedCount / 60
+                                </p>
+                                
+                                <form asp-action="SelectSubject" method="post">
+                                    <input type="hidden" name="assignedSubjectId" value="@assignedSubject.AssignedSubjectId" />
+                                    <button type="submit" 
+                                            class="enroll-btn"
+                                            @(assignedSubject.SelectedCount >= 60 ? "disabled" : "")
+                                            title="@(assignedSubject.SelectedCount >= 60 ? "Subject is full" : "Click to enroll")">
+                                        @if (assignedSubject.SelectedCount >= 60)
+                                        {
+                                            <text><i class="fas fa-times"></i> Full</text>
+                                        }
+                                        else
+                                        {
+                                            <text><i class="fas fa-check"></i> Enroll</text>
+                                        }
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="no-subjects">
+                <h3><i class="fas fa-target"></i> All Set!</h3>
+                <p>No new subjects available for enrollment at this time. You may have already enrolled in all available subjects for your year and department.</p>
+            </div>
+        }
+    </div>
+</body>
+</html>

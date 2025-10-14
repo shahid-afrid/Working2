@@ -1,0 +1,327 @@
+@model TutorLiveMentor.Models.Student
+
+@{
+    ViewData["Title"] = "Assigned Faculty";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assigned Faculty - TutorLiveMentor</title>
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        :root {
+            --royal-blue: #274060;
+            --warm-gold: #FFC857;
+            --cream: #F9FAF2;
+            --slate: #CED3DC;
+            --card-shadow: rgba(39,64,96,0.13);
+            --success-green: #28a745;
+            --error-red: #dc3545;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+            font-family: 'Montserrat', Arial, sans-serif;
+            background: linear-gradient(rgba(249, 250, 242, 0.15), rgba(255, 200, 87, 0.10)), url('@Url.Content("~/images/RGMCET-BACKGROUND.jpg")') center center/cover no-repeat fixed;
+            position: relative;
+        }
+
+            body::before {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 0;
+                display: block;
+                background: linear-gradient(135deg, var(--cream) 60%, var(--warm-gold) 100%);
+                opacity: 0.20;
+                pointer-events: none;
+            }
+
+        .main-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .nav-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(249,250,242,0.9);
+            color: var(--royal-blue);
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            border: 2px solid var(--slate);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+            .nav-link:hover {
+                background: var(--warm-gold);
+                color: var(--royal-blue);
+                transform: translateY(-2px);
+                text-decoration: none;
+            }
+
+        .dashboard-header {
+            background: rgba(249,250,242,0.92);
+            box-shadow: 0 8px 32px var(--card-shadow);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            margin-bottom: 40px;
+            border: 2px solid var(--slate);
+        }
+
+            .dashboard-header h2 {
+                font-size: 2.5em;
+                font-weight: 700;
+                color: var(--royal-blue);
+                margin: 0;
+                letter-spacing: 1.2px;
+            }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .alert-success {
+            color: var(--success-green);
+            background-color: rgba(40, 167, 69, 0.1);
+            border-color: var(--success-green);
+        }
+
+        .alert-danger {
+            color: var(--error-red);
+            background-color: rgba(220, 53, 69, 0.1);
+            border-color: var(--error-red);
+        }
+
+        .enrollment-card {
+            background: rgba(249,250,242,0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--slate);
+            box-shadow: 0 8px 32px var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+
+            .enrollment-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 12px 40px var(--card-shadow);
+                border-color: var(--warm-gold);
+            }
+
+        .subject-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--slate);
+        }
+
+        .subject-info {
+            flex-grow: 1;
+        }
+
+        .subject-name {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--royal-blue);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .faculty-name {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .enrollment-stats {
+            font-size: 1em;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .unenroll-btn {
+            background: linear-gradient(135deg, var(--error-red) 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+
+            .unenroll-btn:hover {
+                background: linear-gradient(135deg, #c0392b 0%, var(--error-red) 100%);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+            }
+
+        .no-enrollments {
+            background: rgba(249,250,242,0.95);
+            border-radius: 20px;
+            padding: 50px 40px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            border: 2px solid var(--slate);
+            box-shadow: 0 8px 32px var(--card-shadow);
+        }
+
+        .no-enrollments-icon {
+            font-size: 4em;
+            color: var(--royal-blue);
+            margin-bottom: 20px;
+        }
+
+        .no-enrollments h3 {
+            color: var(--royal-blue);
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .no-enrollments p {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .select-btn {
+            background: linear-gradient(135deg, var(--royal-blue) 0%, var(--warm-gold) 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px var(--card-shadow);
+        }
+
+            .select-btn:hover {
+                background: linear-gradient(135deg, var(--warm-gold) 0%, var(--royal-blue) 100%);
+                transform: translateY(-3px);
+                box-shadow: 0 12px 35px rgba(255, 200, 87, 0.4);
+                text-decoration: none;
+                color: white;
+            }
+
+        @@media (max-width: 768px) {
+            .subject-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .unenroll-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="@Url.Action("MainDashboard", "Student")" class="nav-link"><i class="fas fa-home"></i> Back to Dashboard</a>
+
+    <div class="main-container">
+        <div class="dashboard-header">
+            <h2>Assigned Faculty</h2>
+        </div>
+
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success">
+                @TempData["SuccessMessage"]
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger">
+                @TempData["ErrorMessage"]
+            </div>
+        }
+
+        @if (Model.Enrollments.Any())
+        {
+            @foreach (var enrollment in Model.Enrollments)
+            {
+                <div class="enrollment-card">
+                    <div class="subject-header">
+                        <div class="subject-info">
+                            <div class="subject-name">
+                                <i class="fas fa-book-open"></i> @enrollment.AssignedSubject.Subject.Name
+                            </div>
+                            <div class="faculty-name">
+                                <i class="fas fa-chalkboard-teacher"></i> Faculty: @enrollment.AssignedSubject.Faculty.Name
+                            </div>
+                            <div class="enrollment-stats">
+                                <i class="fas fa-user-graduate"></i> Students enrolled: @enrollment.AssignedSubject.SelectedCount / 60
+                            </div>
+                        </div>
+
+                        <form asp-action="UnenrollSubject" method="post" style="display:inline;">
+                            <input type="hidden" name="assignedSubjectId" value="@enrollment.AssignedSubjectId" />
+                            <button type="submit" class="unenroll-btn" onclick="return confirm('Are you sure you want to unenroll from this subject?')">
+                                <i class="fas fa-times-circle"></i> Unenroll
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="no-enrollments">
+                <div class="no-enrollments-icon"><i class="fas fa-target"></i></div>
+                <h3>No Faculty Assigned Yet</h3>
+                <p>You haven't enrolled in any subjects yet. Visit the "Select Subject" section to choose your subjects and faculty members.</p>
+                <a href="@Url.Action("SelectSubject", "Student")" class="select-btn">
+                    <i class="fas fa-book-open"></i> Select Subjects Now
+                </a>
+            </div>
+        }
+    </div>
+</body>
+</html>

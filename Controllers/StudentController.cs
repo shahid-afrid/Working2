@@ -118,32 +118,8 @@ namespace TutorLiveMentor.Controllers
                 return NotFound();
             }
 
-            // Get all available subjects for the student's department and year
-            var yearMap = new Dictionary<string, int> { { "I", 1 }, { "II", 2 }, { "III", 3 }, { "IV", 4 } };
-            var studentYearKey = student.Year?.Replace(" Year", "")?.Trim() ?? "";
-            
-            var availableSubjects = new List<AssignedSubject>();
-            if (yearMap.TryGetValue(studentYearKey, out int studentYear))
-            {
-                // Get subjects that are not full
-                availableSubjects = await _context.AssignedSubjects
-                   .Include(a => a.Subject)
-                   .Include(a => a.Faculty)
-                   .Where(a => a.Department == student.Department && a.Year == studentYear && a.SelectedCount < 60)
-                   .ToListAsync();
-
-                // Filter out subjects where student has already enrolled
-                var enrolledSubjectIds = student.Enrollments?.Select(e => e.AssignedSubject.SubjectId).ToList() ?? new List<int>();
-                availableSubjects = availableSubjects.Where(a => !enrolledSubjectIds.Contains(a.SubjectId)).ToList();
-            }
-
-            var viewModel = new StudentDashboardViewModel
-            {
-                Student = student,
-                AvailableSubjectsGrouped = availableSubjects.GroupBy(s => s.Subject.Name)
-            };
-
-            return View(viewModel);
+            // Return the student model directly as the Dashboard view expects Student model
+            return View(student);
         }
 
         [HttpPost]
@@ -175,20 +151,20 @@ namespace TutorLiveMentor.Controllers
             if (student.Enrollments.Any(e => e.AssignedSubjectId == assignedSubjectId))
             {
                 TempData["ErrorMessage"] = "You have already enrolled with this faculty for this subject.";
-                return RedirectToAction("Dashboard");
+                return RedirectToAction("SelectSubject");
             }
 
             // Check if student has already enrolled in this subject with any faculty
             if (student.Enrollments.Any(e => e.AssignedSubject.SubjectId == assignedSubject.SubjectId))
             {
                 TempData["ErrorMessage"] = $"You have already enrolled in {assignedSubject.Subject.Name} with another faculty.";
-                return RedirectToAction("Dashboard");
+                return RedirectToAction("SelectSubject");
             }
 
             if (assignedSubject.SelectedCount >= 60)
             {
                 TempData["ErrorMessage"] = "This subject is already full.";
-                return RedirectToAction("Dashboard");
+                return RedirectToAction("SelectSubject");
             }
 
             // Create a new enrollment
@@ -209,7 +185,7 @@ namespace TutorLiveMentor.Controllers
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = $"Successfully enrolled in {assignedSubject.Subject.Name} with {assignedSubject.Faculty.Name}.";
-            return RedirectToAction("Dashboard");
+            return RedirectToAction("SelectSubject");
         }
 
         [HttpPost]
@@ -236,7 +212,7 @@ namespace TutorLiveMentor.Controllers
             if (enrollment == null)
             {
                 TempData["ErrorMessage"] = "You are not enrolled in this subject.";
-                return RedirectToAction("Dashboard");
+                return RedirectToAction("AssignedFaculty");
             }
 
             var assignedSubject = await _context.AssignedSubjects
@@ -258,7 +234,7 @@ namespace TutorLiveMentor.Controllers
             await _context.SaveChangesAsync();
 
             TempData["SuccessMessage"] = $"Successfully unenrolled from {assignedSubject?.Subject.Name}.";
-            return RedirectToAction("Dashboard");
+            return RedirectToAction("AssignedFaculty");
         }
 
         [HttpGet]
@@ -317,6 +293,154 @@ namespace TutorLiveMentor.Controllers
         {
             HttpContext.Session.Clear();
             return RedirectToAction("Login");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SelectSubject()
+        {
+            var studentId = HttpContext.Session.GetInt32("StudentId");
+            if (studentId == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            var student = await _context.Students
+                .Include(s => s.Enrollments)
+                    .ThenInclude(e => e.AssignedSubject)
+                    .ThenInclude(asub => asub.Subject)
+                .Include(s => s.Enrollments)
+                    .ThenInclude(e => e.AssignedSubject)
+                    .ThenInclude(asub => asub.Faculty)
+                .FirstOrDefaultAsync(s => s.Id == studentId.Value);
+
+            if (student == null)
+            {
+                return NotFound();
+            }
+
+            // Get all available subjects for the student's department and year
+            var yearMap = new Dictionary<string, int> { { "I", 1 }, { "II", 2 }, { "III", 3 }, { "IV", 4 } };
+            var studentYearKey = student.Year?.Replace(" Year", "")?.Trim() ?? "";
+            
+            var availableSubjects = new List<AssignedSubject>();
+            if (yearMap.TryGetValue(studentYearKey, out int studentYear))
+            {
+                // Get subjects that are not full
+                availableSubjects = await _context.AssignedSubjects
+                   .Include(a => a.Subject)
+                   .Include(a => a.Faculty)
+                   .Where(a => a.Department == student.Department && a.Year == studentYear && a.SelectedCount < 60)
+                   .ToListAsync();
+
+                // Filter out subjects where student has already enrolled
+                var enrolledSubjectIds = student.Enrollments?.Select(e => e.AssignedSubject.SubjectId).ToList() ?? new List<int>();
+                availableSubjects = availableSubjects.Where(a => !enrolledSubjectIds.Contains(a.SubjectId)).ToList();
+            }
+
+            var viewModel = new StudentDashboardViewModel
+            {
+                Student = student,
+                AvailableSubjectsGrouped = availableSubjects.GroupBy(s => s.Subject.Name)
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> AssignedFaculty()
+        {
+            var studentId = HttpContext.Session.GetInt32("StudentId");
+            if (studentId == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            var student = await _context.Students
+                .Include(s => s.Enrollments)
+                    .ThenInclude(e => e.AssignedSubject)
+                    .ThenInclude(asub => asub.Subject)
+                .Include(s => s.Enrollments)
+                    .ThenInclude(e => e.AssignedSubject)
+                    .ThenInclude(asub => asub.Faculty)
+                .FirstOrDefaultAsync(s => s.Id == studentId.Value);
+
+            if (student == null)
+            {
+                return NotFound();
+            }
+
+            return View(student);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ChangePassword()
+        {
+            var studentId = HttpContext.Session.GetInt32("StudentId");
+            if (studentId == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            var student = await _context.Students.FindAsync(studentId.Value);
+            if (student == null)
+            {
+                return NotFound();
+            }
+
+            var model = new ChangePasswordViewModel
+            {
+                StudentId = student.Id,
+                StudentName = student.FullName
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            var studentId = HttpContext.Session.GetInt32("StudentId");
+            if (studentId == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            if (model.StudentId != studentId.Value)
+            {
+                return BadRequest();
+            }
+
+            if (ModelState.IsValid)
+            {
+                var student = await _context.Students.FindAsync(studentId.Value);
+                if (student == null)
+                {
+                    return NotFound();
+                }
+
+                // Verify current password
+                if (student.Password != model.CurrentPassword)
+                {
+                    ModelState.AddModelError("CurrentPassword", "Current password is incorrect.");
+                    return View(model);
+                }
+
+                // Update password
+                student.Password = model.NewPassword;
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Password changed successfully!";
+                return RedirectToAction("Dashboard");
+            }
+
+            return View(model);
+        }
+
+        [HttpGet]
+        public IActionResult TestEmoji()
+        {
+            // Simple test view to check emoji display
+            return View();
         }
     }
 

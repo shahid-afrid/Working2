@@ -258,22 +258,22 @@
             <div class="dashboard-card">
                 <div class="card-icon">👤</div>
                 <h5 class="card-title">Student Dashboard</h5>
-                <p class="card-text">View your profile and enrollment status.</p>
+                <p class="card-text">View your profile and personal details.</p>
                 <a asp-controller="Student" asp-action="Dashboard" class="glass-btn">View Profile</a>
             </div>
 
             <div class="dashboard-card">
                 <div class="card-icon">🎓</div>
                 <h5 class="card-title">Select Subject</h5>
-                <p class="card-text">Choose a subject and faculty for the semester.</p>
-                <a asp-controller="Student" asp-action="Dashboard" class="glass-btn">Select Now</a>
+                <p class="card-text">Choose subjects and faculty for the semester.</p>
+                <a asp-controller="Student" asp-action="SelectSubject" class="glass-btn">Select Now</a>
             </div>
 
             <div class="dashboard-card">
                 <div class="card-icon">👩‍🏫</div>
                 <h5 class="card-title">Assigned Faculty</h5>
-                <p class="card-text">See details about your assigned faculty.</p>
-                <a asp-controller="Student" asp-action="Dashboard" class="glass-btn">View Details</a>
+                <p class="card-text">View your enrolled subjects and assigned faculty.</p>
+                <a asp-controller="Student" asp-action="AssignedFaculty" class="glass-btn">View Details</a>
             </div>
         </div>
     </div>

@@ -1,0 +1,55 @@
+@model TutorLiveMentor.Controllers.StudentDashboardViewModel
+
+@{
+    ViewData["Title"] = "TEST PAGE";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TEST - Cache Buster @DateTime.Now.Ticks</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; font-size: 20px; }
+        .test { background: yellow; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .emoji-test { font-size: 24px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>?? CACHE TEST PAGE - @DateTime.Now.ToString("HH:mm:ss")</h1>
+    
+    <div class="test">
+        <h2>?? Test Icons:</h2>
+        <div class="emoji-test">Book: ??</div>
+        <div class="emoji-test">Teacher: ?????</div>  
+        <div class="emoji-test">Check: ?</div>
+        <div class="emoji-test">Cross: ?</div>
+        <div class="emoji-test">Arrow: ??</div>
+        <div class="emoji-test">Home: ??</div>
+        <div class="emoji-test">Profile: ??</div>
+        <div class="emoji-test">Email: ??</div>
+        <div class="emoji-test">Lock: ??</div>
+        <div class="emoji-test">Key: ??</div>
+        <div class="emoji-test">Department: ??</div>
+        <div class="emoji-test">Graduation: ??</div>
+        <div class="emoji-test">Door: ??</div>
+    </div>
+    
+    <div class="test">
+        <h2>? If you see proper emojis above (not question marks), the encoding is working!</h2>
+        <p>If you still see question marks (?), the issue might be:</p>
+        <ol>
+            <li>Your browser doesn't support emoji (very rare on modern browsers)</li>
+            <li>System font doesn't include emoji characters</li>
+            <li>Still having encoding issues</li>
+        </ol>
+    </div>
+    
+    <p><a href="@Url.Action("MainDashboard", "Student")">?? Back to Dashboard</a></p>
+</body>
+</html>

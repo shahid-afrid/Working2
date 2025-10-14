@@ -158,16 +158,9 @@
             border: 2px solid var(--slate);
             transition: all 0.3s ease;
             margin-top: 20px;
-            opacity: 0.6;
-            pointer-events: none;
         }
 
-        .glass-btn.enabled {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .glass-btn.enabled:hover {
+        .glass-btn:hover {
             box-shadow: 0 16px 32px rgba(40, 167, 69, 0.3);
             background: linear-gradient(90deg, var(--warm-gold) 62%, var(--success-green) 100%);
             color: var(--royal-blue);
@@ -219,6 +212,7 @@
             background: var(--warm-gold);
             color: var(--royal-blue);
             transform: translateY(-2px);
+            text-decoration: none;
         }
 
         .validation-icon {
@@ -336,7 +330,7 @@
 
             <div class="form-group">
                 <label class="required">College Email (must end with @@rgmcet.edu.in)</label>
-                @Html.TextBoxFor(m => m.Email, new { type = "email", id = "email", @required = "required", oninput = "validateEmail(this)", placeholder = "yourname@rgmcet.edu.in" })
+                @Html.TextBoxFor(m => m.Email, new { type = "email", id = "email", @required = "required", oninput = "validateEmail(this)", placeholder = "yourname@@rgmcet.edu.in" })
                 <span class="validation-icon" id="emailIcon"></span>
                 <span id="emailError" class="real-time-error"></span>
                 @Html.ValidationMessageFor(m => m.Email)
@@ -359,166 +353,152 @@
         }
     </div>
 
-    @section Scripts {
-        @await Html.PartialAsync("_ValidationScriptsPartial")
-        <script type="text/javascript">
-            let validationState = {
-                fullName: false,
-                regdNumber: false,
-                year: false,
-                department: false,
-                email: false,
-                password: false
-            };
+    <script type="text/javascript">
+        let validationState = {
+            fullName: false,
+            regdNumber: false,
+            year: false,
+            department: false,
+            email: false,
+            password: false
+        };
 
-            function updateProgress() {
-                const validCount = Object.values(validationState).filter(v => v).length;
-                const progress = (validCount / 6) * 100;
-                
-                document.getElementById('progressFill').style.width = progress + '%';
-                
-                if (progress === 100) {
-                    document.getElementById('progressText').textContent = 'Ready to register! ✅';
-                    document.getElementById('submitBtn').classList.add('enabled');
-                } else {
-                    document.getElementById('progressText').textContent = `${validCount}/6 fields completed`;
-                    document.getElementById('submitBtn').classList.remove('enabled');
-                }
+        function updateProgress() {
+            const validCount = Object.values(validationState).filter(v => v).length;
+            const progress = (validCount / 6) * 100;
+            
+            document.getElementById('progressFill').style.width = progress + '%';
+            
+            if (progress === 100) {
+                document.getElementById('progressText').textContent = 'Ready to register! ✅';
+            } else {
+                document.getElementById('progressText').textContent = `${validCount}/6 fields completed`;
             }
+        }
 
-            function showValidation(fieldId, isValid, message = '') {
-                const field = document.getElementById(fieldId) || document.querySelector(`[name="${fieldId}"]`);
-                const icon = document.getElementById(fieldId + 'Icon');
-                const error = document.getElementById(fieldId + 'Error');
-                
-                if (field) {
-                    field.classList.remove('input-valid', 'input-invalid');
-                    field.classList.add(isValid ? 'input-valid' : 'input-invalid');
-                }
-                
-                if (icon) {
-                    icon.textContent = isValid ? '✅' : '❌';
-                    icon.classList.add('show');
-                }
-                
-                if (error) {
-                    error.textContent = message;
-                    error.className = isValid ? 'field-validation-success' : 'real-time-error';
-                }
+        function showValidation(fieldId, isValid, message = '') {
+            const field = document.getElementById(fieldId) || document.querySelector(`[name="${fieldId}"]`);
+            const icon = document.getElementById(fieldId + 'Icon');
+            const error = document.getElementById(fieldId + 'Error');
+            
+            if (field) {
+                field.classList.remove('input-valid', 'input-invalid');
+                field.classList.add(isValid ? 'input-valid' : 'input-invalid');
             }
-
-            function validateFullName(input) {
-                const isValid = input.value.trim().length >= 2 && /^[a-zA-Z\s]+$/.test(input.value);
-                const message = isValid ? 'Valid name ✓' : 'Name must be at least 2 characters and contain only letters';
-                
-                validationState.fullName = isValid;
-                showValidation('FullName', isValid, message);
-                updateProgress();
+            
+            if (icon) {
+                icon.textContent = isValid ? '✅' : '❌';
+                icon.classList.add('show');
             }
-
-            function validateRegdNum(input) {
-                const isValid = input.value.length === 10 && /^[A-Za-z0-9]+$/.test(input.value);
-                const message = isValid ? 'Valid registration number ✓' : 'Registration number must be exactly 10 alphanumeric characters';
-                
-                validationState.regdNumber = isValid;
-                showValidation('regdnum', isValid, message);
-                updateProgress();
+            
+            if (error) {
+                error.textContent = message;
+                error.className = isValid ? 'field-validation-success' : 'real-time-error';
             }
+        }
 
-            function validateYear(select) {
-                const isValid = select.value !== '';
-                const message = isValid ? 'Year selected ✓' : 'Please select your year';
-                
-                validationState.year = isValid;
-                showValidation('Year', isValid, message);
-                updateProgress();
+        function validateFullName(input) {
+            const isValid = input.value.trim().length >= 2 && /^[a-zA-Z\s]+$/.test(input.value);
+            const message = isValid ? 'Valid name ✓' : 'Name must be at least 2 characters and contain only letters';
+            
+            validationState.fullName = isValid;
+            showValidation('FullName', isValid, message);
+            updateProgress();
+        }
+
+        function validateRegdNum(input) {
+            const isValid = input.value.length === 10 && /^[A-Za-z0-9]+$/.test(input.value);
+            const message = isValid ? 'Valid registration number ✓' : 'Registration number must be exactly 10 alphanumeric characters';
+            
+            validationState.regdNumber = isValid;
+            showValidation('regdnum', isValid, message);
+            updateProgress();
+        }
+
+        function validateYear(select) {
+            const isValid = select.value !== '';
+            const message = isValid ? 'Year selected ✓' : 'Please select your year';
+            
+            validationState.year = isValid;
+            showValidation('Year', isValid, message);
+            updateProgress();
+        }
+
+        function validateDepartment(select) {
+            const isValid = select.value !== '';
+            const message = isValid ? 'Department selected ✓' : 'Please select your department';
+            
+            validationState.department = isValid;
+            showValidation('Department', isValid, message);
+            updateProgress();
+        }
+
+        function validateEmail(input) {
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@@rgmcet\.edu\.in$/;
+            const isValid = emailPattern.test(input.value);
+            let message;
+            
+            if (!input.value) {
+                message = 'Email is required';
+            } else if (!input.value.includes('@@')) {
+                message = 'Invalid email format';
+            } else if (!input.value.endsWith('@@rgmcet.edu.in')) {
+                message = 'Must use college email ending with @@rgmcet.edu.in';
+            } else if (isValid) {
+                message = 'Valid college email ✓';
+            } else {
+                message = 'Invalid email format';
             }
+            
+            validationState.email = isValid;
+            showValidation('email', isValid, message);
+            updateProgress();
+        }
 
-            function validateDepartment(select) {
-                const isValid = select.value !== '';
-                const message = isValid ? 'Department selected ✓' : 'Please select your department';
-                
-                validationState.department = isValid;
-                showValidation('Department', isValid, message);
-                updateProgress();
+        function validatePassword(input) {
+            const minLength = input.value.length >= 8;
+            const hasUppercase = /[A-Z]/.test(input.value);
+            const hasDigit = /\d/.test(input.value);
+            const hasSpecial = /[^\w\s]/.test(input.value);
+            
+            const isValid = minLength && hasUppercase && hasDigit && hasSpecial;
+            let message;
+            
+            if (!input.value) {
+                message = 'Password is required';
+            } else if (!minLength) {
+                message = `Password too short (${input.value.length}/8 characters)`;
+            } else if (!hasUppercase) {
+                message = 'Password must contain at least 1 uppercase letter';
+            } else if (!hasDigit) {
+                message = 'Password must contain at least 1 digit';
+            } else if (!hasSpecial) {
+                message = 'Password must contain at least 1 special character';
+            } else {
+                message = 'Strong password ✓';
             }
+            
+            validationState.password = isValid;
+            showValidation('password', isValid, message);
+            updateProgress();
+        }
 
-            function validateEmail(input) {
-                const emailPattern = /^[a-zA-Z0-9._%+-]+@@rgmcet\.edu\.in$/;
-                const isValid = emailPattern.test(input.value);
-                let message;
-                
-                if (!input.value) {
-                    message = 'Email is required';
-                } else if (!input.value.includes('@@')) {
-                    message = 'Invalid email format';
-                } else if (!input.value.endsWith('@@rgmcet.edu.in')) {
-                    message = 'Must use college email ending with @@rgmcet.edu.in';
-                } else if (isValid) {
-                    message = 'Valid college email ✓';
-                } else {
-                    message = 'Invalid email format';
-                }
-                
-                validationState.email = isValid;
-                showValidation('email', isValid, message);
-                updateProgress();
+        function togglePassword() {
+            var pwd = document.getElementById("password");
+            var eye = document.getElementById("eye");
+            if (pwd.type === "password") {
+                pwd.type = "text";
+                eye.textContent = "🙈";
+            } else {
+                pwd.type = "password";
+                eye.textContent = "👁️";
             }
+        }
 
-            function validatePassword(input) {
-                const minLength = input.value.length >= 8;
-                const hasUppercase = /[A-Z]/.test(input.value);
-                const hasDigit = /\d/.test(input.value);
-                const hasSpecial = /[^\w\d\s:]/.test(input.value);
-                
-                const isValid = minLength && hasUppercase && hasDigit && hasSpecial;
-                let message;
-                
-                if (!input.value) {
-                    message = 'Password is required';
-                } else if (!minLength) {
-                    message = `Password too short (${input.value.length}/8 characters)`;
-                } else if (!hasUppercase) {
-                    message = 'Password must contain at least 1 uppercase letter';
-                } else if (!hasDigit) {
-                    message = 'Password must contain at least 1 digit';
-                } else if (!hasSpecial) {
-                    message = 'Password must contain at least 1 special character';
-                } else {
-                    message = 'Strong password ✓';
-                }
-                
-                validationState.password = isValid;
-                showValidation('password', isValid, message);
-                updateProgress();
-            }
-
-            function togglePassword() {
-                var pwd = document.getElementById("password");
-                var eye = document.getElementById("eye");
-                if (pwd.type === "password") {
-                    pwd.type = "text";
-                    eye.textContent = "🙈";
-                } else {
-                    pwd.type = "password";
-                    eye.textContent = "👁️";
-                }
-            }
-
-            // Initialize form validation on page load
-            document.addEventListener('DOMContentLoaded', function() {
-                updateProgress();
-                
-                // Add event listeners for form submission
-                document.querySelector('form').addEventListener('submit', function(e) {
-                    const allValid = Object.values(validationState).every(v => v);
-                    if (!allValid) {
-                        e.preventDefault();
-                        alert('Please complete all required fields correctly before submitting.');
-                    }
-                });
-            });
-        </script>
-    }
+        // Initialize form validation on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateProgress();
+        });
+    </script>
 </body>
 </html>
