@@ -213,15 +213,8 @@
             background: linear-gradient(135deg, #17a2b8, #6f42c1);
         }
 
-        .management-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 45px rgba(111, 66, 193, 0.4);
-        }
-
-        .management-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-            display: block;
+        .management-card.schedule-card::before {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
         }
 
         .faculty-card .management-icon { color: #28a745; }
@@ -229,6 +222,7 @@
         .students-card .management-icon { color: #9b59b6; }
         .assignment-card .management-icon { color: #6f42c1; }
         .report-card .management-icon { color: #17a2b8; }
+        .schedule-card .management-icon { color: #e74c3c; }
 
         .management-title {
             font-size: 1.4em;
@@ -586,6 +580,16 @@
                 <div class="management-desc">Generate detailed analytics reports with filters. Export enrollment data in Excel and PDF formats for analysis.</div>
                 <button class="glass-btn">
                     <i class="fas fa-download"></i> View Reports
+                </button>
+            </div>
+
+            <!-- Faculty Selection Schedule -->
+            <div class="management-card schedule-card" onclick="window.location.href='@Url.Action("ManageFacultySelectionSchedule", "Admin")'">
+                <i class="fas fa-clock management-icon"></i>
+                <div class="management-title">Faculty Selection Schedule</div>
+                <div class="management-desc">Control when students can select faculty. Toggle selection on/off or set specific time periods for faculty selection windows.</div>
+                <button class="glass-btn">
+                    <i class="fas fa-calendar-alt"></i> Manage Schedule
                 </button>
             </div>
         </div>

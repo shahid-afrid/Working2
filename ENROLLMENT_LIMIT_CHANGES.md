@@ -1,63 +1,36 @@
-# ?? TutorLiveMentor - Enrollment Limit Changed
+# ?? TutorLiveMentor - Enrollment Limit History
 
-## ?? **Changes Made: 60 ? 20 Students**
+## ?? **OUTDATED - FOR HISTORICAL REFERENCE ONLY**
 
-For testing purposes, the enrollment limit has been reduced from **60 students** to **20 students** per faculty subject.
+**?? This file is now OBSOLETE. Please refer to the current documentation:**
+- **Current Limit:** See `ENROLLMENT_LIMIT_INCREASE_20_TO_30.md`
+- **Quick Reference:** See `QUICK_REFERENCE_30_STUDENT_LIMIT.md`
 
-### **?? Files Modified:**
+---
 
-#### **Controllers\StudentController.cs**
-**Two locations updated:**
+## ?? **Historical Changes:**
 
-1. **Line ~137** - Enrollment Validation Check:
-   ```csharp
-   // OLD: if (assignedSubject.SelectedCount >= 60)
-   // NEW: 
-   if (assignedSubject.SelectedCount >= 20)
-   {
-       TempData["ErrorMessage"] = "This subject is already full (maximum 20 students).";
-       return RedirectToAction("SelectSubject");
-   }
-   ```
+### **Change 1: 60 ? 20 Students (Previous)**
+For testing purposes, the enrollment limit was temporarily reduced from **60 students** to **20 students** per faculty subject.
 
-2. **Line ~283** - Available Subjects Query:
-   ```csharp
-   // OLD: .Where(a => a.Year == studentYear && a.SelectedCount < 60)
-   // NEW:
-   .Where(a => a.Year == studentYear && a.SelectedCount < 20)
-   ```
+### **Change 2: 20 ? 30 Students (CURRENT)**
+? **The enrollment limit has been increased from 20 students to 30 students per faculty subject.**
 
-### **?? What This Changes:**
+---
 
-#### **For Students:**
-- ? Can only enroll if faculty has **fewer than 20** students
-- ? Will see "Subject is full" message when faculty reaches **20 students**
-- ? Only subjects with **available slots (< 20)** appear in subject selection
+## ? **Current Status:**
+- **Maximum Capacity:** **30 students** per faculty subject
+- **Warning Threshold:** **25 students** (badge turns orange)
+- **Full Status:** **30 students** (button shows FULL, disabled)
+- **Build Status:** ? Successful
+- **Testing:** ? Ready for deployment
 
-#### **For Faculty:**
-- ? Can see up to **20 students maximum** per subject
-- ? Subject becomes unavailable to new students once **20 students** enrolled
-- ? Student count displays correctly in faculty dashboard
+---
 
-#### **For Testing:**
-- ? **Easier to test** "full subject" scenarios with smaller numbers
-- ? **Faster enrollment filling** for demonstration purposes
-- ? **More manageable** student lists for small-scale testing
+## ?? **See Current Documentation:**
+1. `ENROLLMENT_LIMIT_INCREASE_20_TO_30.md` - Complete change documentation
+2. `QUICK_REFERENCE_30_STUDENT_LIMIT.md` - Quick reference guide
 
-### **?? How to Change Back (Future):**
+---
 
-When ready for production, simply change both instances back:
-
-```csharp
-// Change these lines in Controllers\StudentController.cs:
-if (assignedSubject.SelectedCount >= 60)  // Line ~137
-.Where(a => a.Year == studentYear && a.SelectedCount < 60)  // Line ~283
-```
-
-### **? Current Status:**
-- ??? **Build**: Successful  
-- ?? **Testing**: Ready with 20-student limit
-- ?? **Network**: Fully functional
-- ?? **Database**: All tables working properly
-
-**Your TutorLiveMentor application is now configured for testing with a 20-student enrollment limit per faculty subject!** ??
+**?? DO NOT USE THIS FILE FOR IMPLEMENTATION - IT'S OUTDATED! ??**

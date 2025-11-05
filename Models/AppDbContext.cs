@@ -15,6 +15,7 @@ namespace TutorLiveMentor.Models
         public DbSet<AssignedSubject> AssignedSubjects { get; set; }
         public DbSet<StudentEnrollment> StudentEnrollments { get; set; }
         public DbSet<Admin> Admins { get; set; }
+        public DbSet<FacultySelectionSchedule> FacultySelectionSchedules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

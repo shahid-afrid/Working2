@@ -135,6 +135,52 @@ namespace TutorLiveMentor10.Migrations
                     b.ToTable("Faculties");
                 });
 
+            modelBuilder.Entity("TutorLiveMentor.Models.FacultySelectionSchedule", b =>
+                {
+                    b.Property<int>("ScheduleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ScheduleId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Department")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DisabledMessage")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("EndDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("StartDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("UseSchedule")
+                        .HasColumnType("bit");
+
+                    b.HasKey("ScheduleId");
+
+                    b.ToTable("FacultySelectionSchedules");
+                });
+
             modelBuilder.Entity("TutorLiveMentor.Models.Student", b =>
                 {
                     b.Property<string>("Id")
@@ -181,6 +227,9 @@ namespace TutorLiveMentor10.Migrations
 
                     b.Property<int>("AssignedSubjectId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("EnrolledAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("StudentEnrollmentId")
                         .HasColumnType("int");

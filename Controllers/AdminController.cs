@@ -8,7 +8,7 @@ using System.Text;
 
 namespace TutorLiveMentor.Controllers
 {
-    public class AdminController : Controller
+    public partial class AdminController : Controller
     {
         private readonly AppDbContext _context;
         private readonly SignalRService _signalRService;
@@ -120,11 +120,25 @@ namespace TutorLiveMentor.Controllers
             var adminId = HttpContext.Session.GetInt32("AdminId");
             var department = HttpContext.Session.GetString("AdminDepartment");
 
-            if (adminId == null || !IsCSEDSDepartment(department))
+            // Debug logging
+            Console.WriteLine($"CSEDSDashboard - AdminId: {adminId}, Department: {department}");
+
+            if (adminId == null)
             {
+                Console.WriteLine("Admin not logged in - redirecting to login");
+                TempData["ErrorMessage"] = "Please login to access the admin dashboard.";
+                return RedirectToAction("Login");
+            }
+
+            if (!IsCSEDSDepartment(department))
+            {
+                Console.WriteLine($"Access denied - Department: {department} is not CSEDS");
                 TempData["ErrorMessage"] = "Access denied. CSEDS department access only.";
                 return RedirectToAction("Login");
             }
+
+            // Force session commit to ensure it persists
+            await HttpContext.Session.CommitAsync();
 
             // Get comprehensive CSEDS data - only match "CSEDS" and "CSE(DS)"
             var viewModel = new CSEDSDashboardViewModel
@@ -200,6 +214,7 @@ namespace TutorLiveMentor.Controllers
                 SubjectFacultyMappings = await GetSubjectFacultyMappings()
             };
 
+            Console.WriteLine("CSEDSDashboard loaded successfully");
             return View(viewModel);
         }
 
@@ -774,570 +789,202 @@ namespace TutorLiveMentor.Controllers
             return View(subjects);
         }
 
-        [HttpGet]
-        public async Task<IActionResult> CSEDSReports()
+        /// <summary>
+        /// Add new CSEDS subject
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> AddCSEDSSubject([FromBody] SubjectViewModel model)
         {
             var department = HttpContext.Session.GetString("AdminDepartment");
             if (!IsCSEDSDepartment(department))
-                return RedirectToAction("Login");
+                return Json(new { success = false, message = "Unauthorized access" });
 
-            var viewModel = new CSEDSReportsViewModel
+            if (!ModelState.IsValid)
+                return Json(new { success = false, message = "Invalid data provided" });
+
+            try
             {
-                AvailableSubjects = await _context.Subjects
-                    .Where(s => s.Department == "CSEDS" || s.Department == "CSE(DS)")
-                    .OrderBy(s => s.Name)
-                    .ToListAsync(),
-                AvailableFaculty = await _context.Faculties
-                    .Where(f => f.Department == "CSEDS" || f.Department == "CSE(DS)")
-                    .OrderBy(f => f.Name)
-                    .ToListAsync()
-            };
+                // Check if subject already exists
+                var existingSubject = await _context.Subjects
+                    .FirstOrDefaultAsync(s => s.Name == model.Name && 
+                                            s.Year == model.Year && 
+                                            s.Semester == model.Semester &&
+                                            (s.Department == "CSEDS" || s.Department == "CSE(DS)"));
 
-            return View(viewModel);
-        }
+                if (existingSubject != null)
+                    return Json(new { success = false, message = "A subject with this name already exists for the selected year and semester" });
 
-        // Keep the old CSEDashboard method for backward compatibility
-        [HttpGet]
-        public IActionResult CSEDashboard()
-        {
-            return RedirectToAction("CSEDSDashboard");
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> Dashboard()
-        {
-            var adminId = HttpContext.Session.GetInt32("AdminId");
-            if (adminId == null)
-                return RedirectToAction("Login");
-
-            var stats = new AdminDashboardViewModel
-            {
-                TotalStudents = await _context.Students.CountAsync(),
-                TotalFaculties = await _context.Faculties.CountAsync(),
-                TotalSubjects = await _context.Subjects.CountAsync(),
-                TotalEnrollments = await _context.StudentEnrollments.CountAsync(),
-                TotalAdmins = await _context.Admins.CountAsync()
-            };
-
-            return View(stats);
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> Profile()
-        {
-            var adminId = HttpContext.Session.GetInt32("AdminId");
-            if (adminId == null)
-                return RedirectToAction("Login");
-
-            var admin = await _context.Admins.FindAsync(adminId.Value);
-            if (admin == null)
-                return NotFound();
-
-            // Check if this is a CSEDS admin to return appropriate view
-            if (IsCSEDSDepartment(admin.Department))
-            {
-                var csedsProfile = new AdminProfileViewModel
+                var subject = new Subject
                 {
-                    AdminId = admin.AdminId,
-                    Email = admin.Email,
-                    Department = admin.Department,
-                    CreatedDate = admin.CreatedDate,
-                    LastLogin = admin.LastLogin
+                    Name = model.Name,
+                    Department = "CSEDS",
+                    Year = model.Year,
+                    Semester = model.Semester,
+                    SemesterStartDate = model.SemesterStartDate,
+                    SemesterEndDate = model.SemesterEndDate
                 };
 
-                return View("CSEDSProfile", csedsProfile);
+                _context.Subjects.Add(subject);
+                await _context.SaveChangesAsync();
+
+                await _signalRService.NotifyUserActivity(
+                    HttpContext.Session.GetString("AdminEmail") ?? "",
+                    "Admin",
+                    "Subject Added",
+                    $"New CSEDS subject added: {subject.Name} (Year {subject.Year}, {subject.Semester})"
+                );
+
+                return Json(new { success = true, message = "Subject added successfully" });
             }
-
-            // For non-CSEDS admins, create a generic profile model
-            var profileModel = new AdminProfileViewModel
+            catch (Exception ex)
             {
-                AdminId = admin.AdminId,
-                Email = admin.Email,
-                Department = admin.Department,
-                CreatedDate = admin.CreatedDate,
-                LastLogin = admin.LastLogin
-            };
-
-            return View(profileModel);
+                Console.WriteLine($"Error adding subject: {ex.Message}");
+                return Json(new { success = false, message = $"Error adding subject: {ex.Message}" });
+            }
         }
 
+        /// <summary>
+        /// Update existing CSEDS subject
+        /// </summary>
         [HttpPost]
-        public async Task<IActionResult> UpdateProfile(AdminProfileViewModel model)
+        public async Task<IActionResult> UpdateCSEDSSubject([FromBody] SubjectViewModel model)
         {
-            var adminId = HttpContext.Session.GetInt32("AdminId");
-            if (adminId == null)
-                return RedirectToAction("Login");
+            var department = HttpContext.Session.GetString("AdminDepartment");
+            if (!IsCSEDSDepartment(department))
+                return Json(new { success = false, message = "Unauthorized access" });
 
-            var admin = await _context.Admins.FindAsync(adminId.Value);
-            if (admin == null)
-                return NotFound();
+            if (!ModelState.IsValid)
+                return Json(new { success = false, message = "Invalid data provided" });
 
-            if (!IsCSEDSDepartment(admin.Department))
-                return Forbid();
-
-            if (ModelState.IsValid)
+            try
             {
-                try
-                {
-                    // Check if email already exists for another admin
-                    var existingAdmin = await _context.Admins
-                        .FirstOrDefaultAsync(a => a.Email == model.Email && a.AdminId != adminId);
+                var subject = await _context.Subjects
+                    .FirstOrDefaultAsync(s => s.SubjectId == model.SubjectId &&
+                                            (s.Department == "CSEDS" || s.Department == "CSE(DS)"));
 
-                    if (existingAdmin != null)
-                    {
-                        ModelState.AddModelError("Email", "An admin with this email already exists.");
-                        return View("CSEDSProfile", model);
-                    }
+                if (subject == null)
+                    return Json(new { success = false, message = "Subject not found" });
 
-                    admin.Email = model.Email;
-                    admin.Department = model.Department;
+                // Check if another subject with same name/year/semester exists (excluding current)
+                var duplicateSubject = await _context.Subjects
+                    .FirstOrDefaultAsync(s => s.SubjectId != model.SubjectId &&
+                                            s.Name == model.Name && 
+                                            s.Year == model.Year && 
+                                            s.Semester == model.Semester &&
+                                            (s.Department == "CSEDS" || s.Department == "CSE(DS)"));
 
-                    await _context.SaveChangesAsync();
+                if (duplicateSubject != null)
+                    return Json(new { success = false, message = "A subject with this name already exists for the selected year and semester" });
 
-                    // Update session data
-                    HttpContext.Session.SetString("AdminEmail", admin.Email);
-                    HttpContext.Session.SetString("AdminDepartment", admin.Department);
+                subject.Name = model.Name;
+                subject.Year = model.Year;
+                subject.Semester = model.Semester;
+                subject.SemesterStartDate = model.SemesterStartDate;
+                subject.SemesterEndDate = model.SemesterEndDate;
 
-                    TempData["SuccessMessage"] = "Profile updated successfully!";
-                    return RedirectToAction("Profile");
-                }
-                catch (Exception ex)
-                {
-                    ModelState.AddModelError("", $"Error updating profile: {ex.Message}");
-                }
+                await _context.SaveChangesAsync();
+
+                await _signalRService.NotifyUserActivity(
+                    HttpContext.Session.GetString("AdminEmail") ?? "",
+                    "Admin",
+                    "Subject Updated",
+                    $"CSEDS subject updated: {subject.Name} (Year {subject.Year}, {subject.Semester})"
+                );
+
+                return Json(new { success = true, message = "Subject updated successfully" });
             }
-
-            return View("CSEDSProfile", model);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating subject: {ex.Message}");
+                return Json(new { success = false, message = $"Error updating subject: {ex.Message}" });
+            }
         }
 
+        /// <summary>
+        /// Delete CSEDS subject
+        /// </summary>
         [HttpPost]
-        public async Task<IActionResult> ChangeAdminPassword(AdminChangePasswordViewModel model)
+        public async Task<IActionResult> DeleteCSEDSSubject([FromBody] dynamic data)
+        {
+            var department = HttpContext.Session.GetString("AdminDepartment");
+            if (!IsCSEDSDepartment(department))
+                return Json(new { success = false, message = "Unauthorized access" });
+
+            try
+            {
+                int subjectId = (int)data.subjectId;
+                
+                var subject = await _context.Subjects
+                    .Include(s => s.AssignedSubjects)
+                        .ThenInclude(a => a.Enrollments)
+                    .FirstOrDefaultAsync(s => s.SubjectId == subjectId &&
+                                            (s.Department == "CSEDS" || s.Department == "CSE(DS)"));
+
+                if (subject == null)
+                    return Json(new { success = false, message = "Subject not found" });
+
+                // Check if there are any enrollments
+                var hasEnrollments = subject.AssignedSubjects?.Any(a => a.Enrollments?.Any() == true) == true;
+                if (hasEnrollments)
+                    return Json(new { success = false, message = "Cannot delete subject with active student enrollments. Please remove all enrollments first." });
+
+                // Delete assigned subjects first
+                if (subject.AssignedSubjects != null && subject.AssignedSubjects.Any())
+                    _context.AssignedSubjects.RemoveRange(subject.AssignedSubjects);
+
+                // Delete the subject
+                _context.Subjects.Remove(subject);
+                await _context.SaveChangesAsync();
+
+                await _signalRService.NotifyUserActivity(
+                    HttpContext.Session.GetString("AdminEmail") ?? "",
+                    "Admin",
+                    "Subject Deleted",
+                    $"CSEDS subject deleted: {subject.Name} (Year {subject.Year}, {subject.Semester})"
+                );
+
+                return Json(new { success = true, message = "Subject deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting subject: {ex.Message}");
+                return Json(new { success = false, message = $"Error deleting subject: {ex.Message}" });
+            }
+        }
+
+        /// <summary>
+        /// Get all admin activities (login, logout, updates) for the admin dashboard
+        /// NOTE: This method is currently disabled because ActivityLogs table doesn't exist
+        /// </summary>
+        /*
+        [HttpGet]
+        public async Task<IActionResult> GetAdminActivities()
         {
             var adminId = HttpContext.Session.GetInt32("AdminId");
             if (adminId == null)
                 return Json(new { success = false, message = "Please login to continue." });
 
-            var admin = await _context.Admins.FindAsync(adminId.Value);
-            if (admin == null)
-                return Json(new { success = false, message = "Admin not found." });
-
-            if (!IsCSEDSDepartment(admin.Department))
-                return Json(new { success = false, message = "Unauthorized access." });
-
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                return Json(new { success = false, message = string.Join(", ", errors) });
-            }
-
             try
             {
-                // Verify current password
-                if (admin.Password != model.CurrentPassword)
-                {
-                    return Json(new { success = false, message = "Current password is incorrect." });
-                }
-
-                // Update password
-                admin.Password = model.NewPassword;
-                await _context.SaveChangesAsync();
-
-                await _signalRService.NotifyUserActivity(
-                    admin.Email,
-                    "Admin",
-                    "Password Changed",
-                    "CSEDS admin password was successfully changed"
-                );
-
-                return Json(new { success = true, message = "Password changed successfully!" });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = $"Error changing password: {ex.Message}" });
-            }
-        }
-
-        /// <summary>
-        /// CSEDS Student Management
-        /// </summary>
-        [HttpGet]
-        public async Task<IActionResult> ManageCSEDSStudents()
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return RedirectToAction("AccessDenied");
-
-            try
-            {
-                var viewModel = new StudentManagementViewModel
-                {
-                    AdminEmail = HttpContext.Session.GetString("AdminEmail") ?? "",
-                    Department = "CSEDS"
-                };
-
-                // Get all CSEDS students with their enrollment details
-                var students = await _context.Students
-                    .Where(s => s.Department == "CSEDS" || s.Department == "CSE(DS)")
-                    .Include(s => s.Enrollments)
-                        .ThenInclude(e => e.AssignedSubject)
-                            .ThenInclude(a => a.Subject)
-                    .Include(s => s.Enrollments)
-                        .ThenInclude(e => e.AssignedSubject)
-                            .ThenInclude(a => a.Faculty)
-                    .OrderBy(s => s.FullName)
+                var activities = await _context.ActivityLogs
+                    .Where(a => a.AdminId == adminId)
+                    .OrderByDescending(a => a.Timestamp)
+                    .Select(a => new
+                    {
+                        a.Timestamp,
+                        a.Action,
+                        a.Description
+                    })
                     .ToListAsync();
 
-                viewModel.DepartmentStudents = students.Select(s => new StudentDetailDto
-                {
-                    StudentId = s.Id,
-                    FullName = s.FullName,
-                    RegdNumber = s.RegdNumber,
-                    Email = s.Email,
-                    Year = s.Year,
-                    Department = s.Department,
-                    TotalEnrollments = s.Enrollments?.Count ?? 0,
-                    IsActive = true, // Assuming all students are active for now
-                    EnrolledSubjects = s.Enrollments?.Select(e => new EnrolledSubjectInfo
-                    {
-                        EnrollmentId = e.StudentEnrollmentId,
-                        SubjectId = e.AssignedSubject.SubjectId,
-                        SubjectName = e.AssignedSubject.Subject.Name,
-                        FacultyName = e.AssignedSubject.Faculty.Name,
-                        Semester = e.AssignedSubject.Subject.Semester ?? "",
-                        Year = e.AssignedSubject.Subject.Year,
-                        IsActive = true
-                    }).ToList() ?? new List<EnrolledSubjectInfo>()
-                }).ToList();
-
-                // Get available subjects for the department
-                viewModel.AvailableSubjects = await _context.Subjects
-                    .Where(s => s.Department == "CSEDS" || s.Department == "CSE(DS)")
-                    .OrderBy(s => s.Year)
-                    .ThenBy(s => s.Name)
-                    .ToListAsync();
-
-                return View(viewModel);
+                return Json(new { success = true, data = activities });
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"Error loading student management: {ex.Message}";
-                return RedirectToAction("CSEDSDashboard");
+                return Json(new { success = false, message = $"Error retrieving activities: {ex.Message}" });
             }
         }
-
-        /// <summary>
-        /// Add new CSEDS student
-        /// </summary>
-        [HttpGet]
-        public IActionResult AddCSEDSStudent()
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return RedirectToAction("AccessDenied");
-
-            var viewModel = new CSEDSStudentViewModel
-            {
-                Department = "CSEDS",
-                IsEdit = false
-            };
-
-            return View(viewModel);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> AddCSEDSStudent(CSEDSStudentViewModel model)
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return RedirectToAction("AccessDenied");
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    // Check if email or registration number already exists
-                    var existingStudent = await _context.Students
-                        .Where(s => s.Email == model.Email || s.RegdNumber == model.RegdNumber)
-                        .FirstOrDefaultAsync();
-
-                    if (existingStudent != null)
-                    {
-                        if (existingStudent.Email == model.Email)
-                            ModelState.AddModelError("Email", "A student with this email already exists.");
-                        if (existingStudent.RegdNumber == model.RegdNumber)
-                            ModelState.AddModelError("RegdNumber", "A student with this registration number already exists.");
-
-                        return View(model);
-                    }
-
-                    // Generate student ID
-                    var studentId = model.RegdNumber; // Using registration number as ID
-
-                    var student = new Student
-                    {
-                        Id = studentId,
-                        FullName = model.FullName,
-                        RegdNumber = model.RegdNumber,
-                        Email = model.Email,
-                        Password = string.IsNullOrEmpty(model.Password) ? "TutorLive123" : model.Password, // Default password
-                        Year = model.Year,
-                        Department = "CSEDS"
-                    };
-
-                    _context.Students.Add(student);
-                    await _context.SaveChangesAsync();
-
-                    TempData["SuccessMessage"] = "Student added successfully!";
-                    return RedirectToAction("ManageCSEDSStudents");
-                }
-                catch (Exception ex)
-                {
-                    ModelState.AddModelError("", $"Error adding student: {ex.Message}");
-                }
-            }
-
-            return View(model);
-        }
-
-        /// <summary>
-        /// Edit CSEDS student
-        /// </summary>
-        [HttpGet]
-        public async Task<IActionResult> EditCSEDSStudent(string id)
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return RedirectToAction("AccessDenied");
-
-            if (string.IsNullOrEmpty(id))
-                return NotFound();
-
-            try
-            {
-                var student = await _context.Students
-                    .Where(s => s.Id == id && (s.Department == "CSEDS" || s.Department == "CSE(DS)"))
-                    .FirstOrDefaultAsync();
-
-                if (student == null)
-                    return NotFound();
-
-                var viewModel = new CSEDSStudentViewModel
-                {
-                    StudentId = student.Id,
-                    FullName = student.FullName,
-                    RegdNumber = student.RegdNumber,
-                    Email = student.Email,
-                    Year = student.Year,
-                    Department = student.Department,
-                    IsEdit = true
-                };
-
-                return View("AddCSEDSStudent", viewModel);
-            }
-            catch (Exception ex)
-            {
-                TempData["ErrorMessage"] = $"Error loading student: {ex.Message}";
-                return RedirectToAction("ManageCSEDSStudents");
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> EditCSEDSStudent(CSEDSStudentViewModel model)
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return RedirectToAction("AccessDenied");
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    var student = await _context.Students
-                        .Where(s => s.Id == model.StudentId && (s.Department == "CSEDS" || s.Department == "CSE(DS)"))
-                        .FirstOrDefaultAsync();
-
-                    if (student == null)
-                        return NotFound();
-
-                    // Check if email or registration number already exists (excluding current student)
-                    var existingStudent = await _context.Students
-                        .Where(s => s.Id != model.StudentId && (s.Email == model.Email || s.RegdNumber == model.RegdNumber))
-                        .FirstOrDefaultAsync();
-
-                    if (existingStudent != null)
-                    {
-                        if (existingStudent.Email == model.Email)
-                            ModelState.AddModelError("Email", "A student with this email already exists.");
-                        if (existingStudent.RegdNumber == model.RegdNumber)
-                            ModelState.AddModelError("RegdNumber", "A student with this registration number already exists.");
-
-                        return View("AddCSEDSStudent", model);
-                    }
-
-                    // Update student details
-                    student.FullName = model.FullName;
-                    student.RegdNumber = model.RegdNumber;
-                    student.Email = model.Email;
-                    student.Year = model.Year;
-
-                    if (!string.IsNullOrEmpty(model.Password))
-                        student.Password = model.Password;
-
-                    await _context.SaveChangesAsync();
-
-                    TempData["SuccessMessage"] = "Student updated successfully!";
-                    return RedirectToAction("ManageCSEDSStudents");
-                }
-                catch (Exception ex)
-                {
-                    ModelState.AddModelError("", $"Error updating student: {ex.Message}");
-                }
-            }
-
-            return View("AddCSEDSStudent", model);
-        }
-
-        /// <summary>
-        /// Delete CSEDS student
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> DeleteCSEDSStudent(string id)
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return Json(new { success = false, message = "Unauthorized access" });
-
-            try
-            {
-                var student = await _context.Students
-                    .Include(s => s.Enrollments)
-                    .Where(s => s.Id == id && (s.Department == "CSEDS" || s.Department == "CSE(DS)"))
-                    .FirstOrDefaultAsync();
-
-                if (student == null)
-                    return Json(new { success = false, message = "Student not found" });
-
-                // Remove enrollments first
-                if (student.Enrollments != null && student.Enrollments.Any())
-                {
-                    _context.StudentEnrollments.RemoveRange(student.Enrollments);
-                }
-
-                // Remove student
-                _context.Students.Remove(student);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Student deleted successfully" });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = $"Error deleting student: {ex.Message}" });
-            }
-        }
-
-        /// <summary>
-        /// Get filtered students for AJAX requests
-        /// </summary>
-        [HttpPost]
-        public async Task<IActionResult> GetFilteredStudents([FromBody] StudentSearchFilter filter)
-        {
-            var department = HttpContext.Session.GetString("AdminDepartment");
-            if (!IsCSEDSDepartment(department ?? ""))
-                return Json(new { success = false, message = "Unauthorized access" });
-
-            try
-            {
-                var query = _context.Students
-                    .Include(s => s.Enrollments)
-                        .ThenInclude(e => e.AssignedSubject)
-                            .ThenInclude(a => a.Subject)
-                    .Include(s => s.Enrollments)
-                        .ThenInclude(e => e.AssignedSubject)
-                            .ThenInclude(a => a.Faculty)
-                    .Where(s => s.Department == "CSEDS" || s.Department == "CSE(DS)");
-
-                // Apply filters
-                if (!string.IsNullOrEmpty(filter.SearchText))
-                {
-                    query = query.Where(s => s.FullName.Contains(filter.SearchText) ||
-                                           s.Email.Contains(filter.SearchText) ||
-                                           s.RegdNumber.Contains(filter.SearchText));
-                }
-
-                if (!string.IsNullOrEmpty(filter.Year))
-                {
-                    query = query.Where(s => s.Year == filter.Year);
-                }
-
-                if (!string.IsNullOrEmpty(filter.Semester))
-                {
-                    query = query.Where(s => s.Enrollments.Any(e => e.AssignedSubject.Subject.Semester == filter.Semester));
-                }
-
-                if (filter.HasEnrollments.HasValue)
-                {
-                    if (filter.HasEnrollments.Value)
-                        query = query.Where(s => s.Enrollments.Any());
-                    else
-                        query = query.Where(s => !s.Enrollments.Any());
-                }
-
-                // Apply sorting
-                switch (filter.SortBy.ToLower())
-                {
-                    case "regdnumber":
-                        query = filter.SortOrder.ToUpper() == "DESC" ?
-                            query.OrderByDescending(s => s.RegdNumber) :
-                            query.OrderBy(s => s.RegdNumber);
-                        break;
-                    case "email":
-                        query = filter.SortOrder.ToUpper() == "DESC" ?
-                            query.OrderByDescending(s => s.Email) :
-                            query.OrderBy(s => s.Email);
-                        break;
-                    case "year":
-                        query = filter.SortOrder.ToUpper() == "DESC" ?
-                            query.OrderByDescending(s => s.Year) :
-                            query.OrderBy(s => s.Year);
-                        break;
-                    default:
-                        query = filter.SortOrder.ToUpper() == "DESC" ?
-                            query.OrderByDescending(s => s.FullName) :
-                            query.OrderBy(s => s.FullName);
-                        break;
-                }
-
-                var students = await query.ToListAsync();
-
-                var result = students.Select(s => new StudentDetailDto
-                {
-                    StudentId = s.Id,
-                    FullName = s.FullName,
-                    RegdNumber = s.RegdNumber,
-                    Email = s.Email,
-                    Year = s.Year,
-                    Department = s.Department,
-                    TotalEnrollments = s.Enrollments?.Count ?? 0,
-                    IsActive = true,
-                    EnrolledSubjects = s.Enrollments?.Select(e => new EnrolledSubjectInfo
-                    {
-                        EnrollmentId = e.StudentEnrollmentId,
-                        SubjectId = e.AssignedSubject.SubjectId,
-                        SubjectName = e.AssignedSubject.Subject.Name,
-                        FacultyName = e.AssignedSubject.Faculty.Name,
-                        Semester = e.AssignedSubject.Subject.Semester ?? "",
-                        Year = e.AssignedSubject.Subject.Year,
-                        IsActive = true
-                    }).ToList() ?? new List<EnrolledSubjectInfo>()
-                }).ToList();
-
-                return Json(new { success = true, data = result });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, message = $"Error filtering students: {ex.Message}" });
-            }
-        }
+        */
 
         /// <summary>
         /// Admin logout

@@ -134,6 +134,53 @@
             box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.1);
         }
 
+        .column-selector {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid var(--slate);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .column-selector h5 {
+            color: var(--royal-blue);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .columns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(249, 250, 242, 0.5);
+            border-radius: 6px;
+            transition: background 0.2s ease;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(111, 66, 193, 0.1);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            margin: 0;
+            font-weight: 500;
+            color: var(--royal-blue);
+        }
+
         .glass-btn {
             background: linear-gradient(135deg, var(--cseds-purple) 0%, var(--cseds-teal) 100%);
             color: white;
@@ -355,6 +402,45 @@
                     </select>
                 </div>
             </div>
+
+            <!-- Column Selection -->
+            <div class="column-selector">
+                <h5><i class="fas fa-columns"></i> Select Columns to Display & Export</h5>
+                <div class="columns-grid">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_studentName" value="studentName" checked onchange="updateColumnVisibility()">
+                        <label for="col_studentName">Student Name</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_regdNumber" value="regdNumber" checked onchange="updateColumnVisibility()">
+                        <label for="col_regdNumber">Registration No</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_email" value="email" checked onchange="updateColumnVisibility()">
+                        <label for="col_email">Student Email</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_year" value="year" checked onchange="updateColumnVisibility()">
+                        <label for="col_year">Year</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_subject" value="subject" checked onchange="updateColumnVisibility()">
+                        <label for="col_subject">Subject</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_faculty" value="faculty" checked onchange="updateColumnVisibility()">
+                        <label for="col_faculty">Faculty</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_semester" value="semester" checked onchange="updateColumnVisibility()">
+                        <label for="col_semester">Semester</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="col_enrollmentTime" value="enrollmentTime" checked onchange="updateColumnVisibility()">
+                        <label for="col_enrollmentTime">Enrollment Time</label>
+                    </div>
+                </div>
+            </div>
             
             <div class="btn-group">
                 <button type="button" class="glass-btn" onclick="generateReport()">
@@ -388,15 +474,14 @@
                 <table class="table" id="reportTable">
                     <thead>
                         <tr>
-                            <th>Student Name</th>
-                            <th>Registration No</th>
-                            <th>Email</th>
-                            <th>Year</th>
-                            <th>Subject</th>
-                            <th>Faculty</th>
-                            <th>Faculty Email</th>
-                            <th>Semester</th>
-                            <th>Enrollment Date</th>
+                            <th class="col-regdNumber">Registration No</th>
+                            <th class="col-studentName">Student Name</th>
+                            <th class="col-email">Email</th>
+                            <th class="col-year">Year</th>
+                            <th class="col-subject">Subject</th>
+                            <th class="col-faculty">Faculty</th>
+                            <th class="col-semester">Semester</th>
+                            <th class="col-enrollmentTime">Enrollment Time</th>
                         </tr>
                     </thead>
                     <tbody id="reportTableBody">
@@ -417,6 +502,76 @@
 
     <script>
         let currentReportData = [];
+
+        // Column visibility state
+        let visibleColumns = {
+            studentName: true,
+            regdNumber: true,
+            email: true,
+            year: true,
+            subject: true,
+            faculty: true,
+            semester: true,
+            enrollmentTime: true
+        };
+
+        function updateColumnVisibility() {
+            // Update visibility state
+            visibleColumns.studentName = document.getElementById('col_studentName').checked;
+            visibleColumns.regdNumber = document.getElementById('col_regdNumber').checked;
+            visibleColumns.email = document.getElementById('col_email').checked;
+            visibleColumns.year = document.getElementById('col_year').checked;
+            visibleColumns.subject = document.getElementById('col_subject').checked;
+            visibleColumns.faculty = document.getElementById('col_faculty').checked;
+            visibleColumns.semester = document.getElementById('col_semester').checked;
+            visibleColumns.enrollmentTime = document.getElementById('col_enrollmentTime').checked;
+
+            // Update table column visibility
+            const table = document.getElementById('reportTable');
+            if (table) {
+                for (const [column, visible] of Object.entries(visibleColumns)) {
+                    const headers = table.querySelectorAll(`.col-${column}`);
+                    headers.forEach(header => {
+                        header.style.display = visible ? '' : 'none';
+                    });
+                }
+            }
+
+            // Re-render data if already loaded
+            if (currentReportData.length > 0) {
+                displayReportResults(currentReportData);
+            }
+        }
+
+        function formatEnrollmentTime(enrolledAt) {
+            if (!enrolledAt) return 'N/A';
+            
+            // ? Ensure proper UTC parsing by adding 'Z' if not present
+            let dateString = enrolledAt;
+            if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+                dateString = dateString + 'Z'; // Force UTC interpretation
+            }
+            
+            // Parse as UTC and convert to local time
+            const date = new Date(dateString);
+            
+            // Format date part (MM/DD/YYYY or DD/MM/YYYY based on locale)
+            const datePart = date.toLocaleDateString();
+            
+            // Format time part with seconds (HH:MM:SS AM/PM)
+            const timePart = date.toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                hour12: true 
+            });
+            
+            // Get milliseconds
+            const milliseconds = date.getMilliseconds().toString().padStart(3, '0');
+            
+            // Return formatted string: "12/10/2024 2:45:10 PM.123"
+            return `${datePart} ${timePart}.${milliseconds}`;
+        }
 
         async function generateReport() {
             const filters = {
@@ -479,17 +634,19 @@
 
             data.forEach(item => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>${item.studentName}</strong></td>
-                    <td><strong>${item.studentRegdNumber}</strong></td>
-                    <td>${item.studentEmail}</td>
-                    <td>${item.studentYear}</td>
-                    <td>${item.subjectName}</td>
-                    <td>${item.facultyName}</td>
-                    <td>${item.facultyEmail}</td>
-                    <td>Semester ${item.semester}</td>
-                    <td>${new Date(item.enrollmentDate).toLocaleDateString()}</td>
-                `;
+                
+                // FIXED ORDER: Registration Number FIRST, then Student Name
+                let rowHTML = '';
+                if (visibleColumns.regdNumber) rowHTML += `<td class="col-regdNumber"><strong>${item.studentRegdNumber}</strong></td>`;
+                if (visibleColumns.studentName) rowHTML += `<td class="col-studentName"><strong>${item.studentName}</strong></td>`;
+                if (visibleColumns.email) rowHTML += `<td class="col-email">${item.studentEmail}</td>`;
+                if (visibleColumns.year) rowHTML += `<td class="col-year">${item.studentYear}</td>`;
+                if (visibleColumns.subject) rowHTML += `<td class="col-subject">${item.subjectName}</td>`;
+                if (visibleColumns.faculty) rowHTML += `<td class="col-faculty">${item.facultyName}</td>`;
+                if (visibleColumns.semester) rowHTML += `<td class="col-semester">Semester ${item.semester}</td>`;
+                if (visibleColumns.enrollmentTime) rowHTML += `<td class="col-enrollmentTime">${formatEnrollmentTime(item.enrolledAt)}</td>`;
+                
+                row.innerHTML = rowHTML;
                 tbody.appendChild(row);
             });
 
@@ -505,116 +662,6 @@
             document.getElementById('exportPdfBtn').disabled = true;
         }
 
-        function getCurrentFilters() {
-            return {
-                SelectedSubjectId: document.getElementById('reportSubject').value || null,
-                SelectedFacultyId: document.getElementById('reportFaculty').value || null,
-                SelectedYear: document.getElementById('reportYear').value || null,
-                SelectedSemester: document.getElementById('reportSemester').value || null
-            };
-        }
-
-        async function exportExcel() {
-            if (currentReportData.length === 0) {
-                alert('No data to export. Please generate a report first.');
-                return;
-            }
-
-            const filters = getCurrentFilters();
-            
-            try {
-                // Show loading indicator
-                const exportBtn = document.getElementById('exportExcelBtn');
-                const originalText = exportBtn.innerHTML;
-                exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
-                exportBtn.disabled = true;
-
-                // Create form and submit (fallback method that works better)
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '@Url.Action("ExportCSEDSReportExcel", "AdminReports")';
-                form.style.display = 'none';
-                
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'filters';
-                input.value = JSON.stringify(filters);
-                
-                form.appendChild(input);
-                document.body.appendChild(form);
-                
-                // Submit form for download
-                form.submit();
-                
-                // Clean up
-                setTimeout(() => {
-                    document.body.removeChild(form);
-                    exportBtn.innerHTML = originalText;
-                    exportBtn.disabled = false;
-                }, 1000);
-
-            } catch (error) {
-                console.error('Export error:', error);
-                alert('Error exporting Excel file: ' + error.message);
-                
-                // Restore button
-                const exportBtn = document.getElementById('exportExcelBtn');
-                exportBtn.innerHTML = '<i class="fas fa-file-excel"></i> Export Excel';
-                exportBtn.disabled = false;
-            }
-        }
-
-        async function exportPDF() {
-            if (currentReportData.length === 0) {
-                alert('No data to export. Please generate a report first.');
-                return;
-            }
-
-            const filters = getCurrentFilters();
-            
-            try {
-                // Show loading indicator
-                const exportBtn = document.getElementById('exportPdfBtn');
-                const originalText = exportBtn.innerHTML;
-                exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
-                exportBtn.disabled = true;
-
-                // Create form and submit (fallback method that works better)
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '@Url.Action("ExportCSEDSReportPDF", "AdminReports")';
-                form.style.display = 'none';
-                
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'filters';
-                input.value = JSON.stringify(filters);
-                
-                form.appendChild(input);
-                document.body.appendChild(form);
-                
-                // Submit form for download
-                form.submit();
-                
-                // Clean up
-                setTimeout(() => {
-                    document.body.removeChild(form);
-                    exportBtn.innerHTML = originalText;
-                    exportBtn.disabled = false;
-                }, 1000);
-
-            } catch (error) {
-                console.error('Export error:', error);
-                alert('Error exporting PDF file: ' + error.message);
-                
-                // Restore button
-                const exportBtn = document.getElementById('exportPdfBtn');
-                exportBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Export PDF';
-                exportBtn.disabled = false;
-            }
-        }
-
-        // Alternative export functions using current data
         async function exportExcelCurrent() {
             if (currentReportData.length === 0) {
                 alert('No data to export. Please generate a report first.');
@@ -628,12 +675,17 @@
                 exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
                 exportBtn.disabled = true;
 
+                const exportData = {
+                    reportData: currentReportData,
+                    selectedColumns: visibleColumns
+                };
+
                 const response = await fetch('@Url.Action("ExportCurrentReportExcel", "AdminReports")', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(currentReportData)
+                    body: JSON.stringify(exportData)
                 });
 
                 if (response.ok) {
@@ -680,12 +732,17 @@
                 exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
                 exportBtn.disabled = true;
 
+                const exportData = {
+                    reportData: currentReportData,
+                    selectedColumns: visibleColumns
+                };
+
                 const response = await fetch('@Url.Action("ExportCurrentReportPDF", "AdminReports")', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(currentReportData)
+                    body: JSON.stringify(exportData)
                 });
 
                 if (response.ok) {
@@ -719,29 +776,11 @@
             }
         }
 
-        // Add this function to test export functionality
-        async function testExportFunctionality() {
-            try {
-                const response = await fetch('@Url.Action("TestExportFunctionality", "AdminReports")');
-                const result = await response.json();
-                console.log('Export test result:', result);
-                
-                if (result.success) {
-                    alert(`Export functionality is working!\nExcel test: ${result.excelSize} bytes\nPDF test: ${result.pdfSize} bytes`);
-                } else {
-                    alert(`Export functionality test failed: ${result.message}`);
-                }
-            } catch (error) {
-                console.error('Export test error:', error);
-                alert('Error testing export functionality: ' + error.message);
-            }
-        }
-
-        // Add this debug function to test if the problem is with data or export libraries
         async function debugExportIssue() {
             console.log('=== EXPORT DEBUG START ===');
             console.log('Current report data:', currentReportData);
             console.log('Report data length:', currentReportData.length);
+            console.log('Selected columns:', visibleColumns);
             
             if (currentReportData.length === 0) {
                 console.log('ERROR: No data to export');
@@ -749,7 +788,7 @@
                 return;
             }
 
-            // Test 1: Check if we can reach the server
+            // Test if we can reach the server
             try {
                 console.log('Testing server connectivity...');
                 const testResponse = await fetch('@Url.Action("TestExportFunctionality", "AdminReports")');
@@ -760,48 +799,11 @@
                     alert('Server export test failed: ' + testResult.message);
                     return;
                 }
+                
+                alert('Debug information logged to console. Export functionality is working. Check browser console for details.');
             } catch (error) {
                 console.log('Server connectivity test failed:', error);
                 alert('Cannot connect to server: ' + error.message);
-                return;
-            }
-
-            // Test 2: Try the export with current data
-            try {
-                console.log('Testing Excel export with current data...');
-                const response = await fetch('@Url.Action("ExportCurrentReportExcel", "AdminReports")', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(currentReportData)
-                });
-
-                console.log('Export response status:', response.status);
-                console.log('Export response headers:', Array.from(response.headers.entries()));
-
-
-                if (response.ok) {
-                    console.log('Export successful! Creating download...');
-                    const blob = await response.blob();
-                    console.log('Blob size:', blob.size);
-                    
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'Debug_Export_Test.xlsx';
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    
-                    alert('Debug export successful!');
-                } else {
-                    const errorText = await response.text();
-                    console.log('Export failed with error:', errorText);
-                    alert('Export failed: ' + errorText);
-                }
-            } catch (error) {
-                console.log('Export attempt failed:', error);
-                alert('Export error: ' + error.message);
             }
 
             console.log('=== EXPORT DEBUG END ===');
@@ -816,8 +818,8 @@
                 loadFacultyForSubject(this.value);
             });
 
-            // Uncomment the line below to test export functionality on page load
-            // testExportFunctionality();
+            // Initialize column visibility
+            updateColumnVisibility();
         });
 
         // Function to load faculty based on selected subject

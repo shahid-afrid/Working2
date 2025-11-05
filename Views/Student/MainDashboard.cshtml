@@ -9,6 +9,7 @@
     <meta charset="utf-8" />
     <title>Student Dashboard - TutorLiveMentor</title>
     <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
         :root {
             --royal-blue: #274060;
@@ -71,6 +72,65 @@
             letter-spacing: 1.2px;
         }
 
+        /* Schedule Status Alert */
+        .schedule-status-alert {
+            background: rgba(249,250,242,0.95);
+            border-radius: 15px;
+            padding: 20px 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 6px 20px var(--card-shadow);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border: 3px solid;
+            animation: slideDown 0.5s ease;
+        }
+
+        .schedule-status-alert.available {
+            background: linear-gradient(135deg, rgba(212, 237, 218, 0.98), rgba(195, 230, 203, 0.98));
+            border-color: var(--success-green);
+            color: #155724;
+        }
+
+        .schedule-status-alert.unavailable {
+            background: linear-gradient(135deg, rgba(248, 215, 218, 0.98), rgba(242, 200, 203, 0.98));
+            border-color: var(--error-red);
+            color: #721c24;
+        }
+
+        .schedule-status-alert .status-icon {
+            font-size: 2em;
+            flex-shrink: 0;
+        }
+
+        .schedule-status-alert .status-content {
+            flex-grow: 1;
+        }
+
+        .schedule-status-alert .status-title {
+            font-weight: 700;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .schedule-status-alert .status-description {
+            font-size: 0.95em;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        @@keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .cards-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -130,6 +190,23 @@
             color: white;
             transform: translateY(-3px) scale(1.05);
             box-shadow: 0 12px 30px rgba(255, 200, 87, 0.4);
+        }
+
+        /* Disabled card state */
+        .dashboard-card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .dashboard-card.disabled:hover {
+            transform: scale(1);
+            box-shadow: 0 8px 32px var(--card-shadow);
+        }
+
+        .dashboard-card.disabled .glass-btn {
+            background: #ccc;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .card-icon {
@@ -206,6 +283,11 @@
         .dashboard-card:nth-child(2) .card-icon {
             color: var(--warm-gold);
         }
+
+        .dashboard-card:nth-child(3) .card-icon {
+            color: var(--success-green);
+        }
+        
         @@media (max-width: 768px) {
             .main-container {
                 padding: 0 15px;
@@ -218,6 +300,11 @@
 
             .dashboard-header h2 {
                 font-size: 2em;
+            }
+
+            .schedule-status-alert {
+                flex-direction: column;
+                text-align: center;
             }
 
             .cards-container {
@@ -242,26 +329,65 @@
     </style>
 </head>
 <body>
-    <a href="@Url.Action("Index", "Home")" class="nav-link">🏠 Home</a>
+    <a href="@Url.Action("Index", "Home")" class="nav-link"><i class="fas fa-home"></i> Home</a>
     
     <div class="main-container">
         <div class="dashboard-header">
             <h2>Welcome, Student!</h2>
         </div>
 
+        @* Faculty Selection Schedule Status *@
+        @if (ViewBag.IsSelectionAvailable != null)
+        {
+            @if ((bool)ViewBag.IsSelectionAvailable)
+            {
+                <div class="schedule-status-alert available">
+                    <i class="fas fa-check-circle status-icon"></i>
+                    <div class="status-content">
+                        <div class="status-title">Faculty Selection Available</div>
+                        <p class="status-description">@ViewBag.ScheduleStatus</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="schedule-status-alert unavailable">
+                    <i class="fas fa-times-circle status-icon"></i>
+                    <div class="status-content">
+                        <div class="status-title">Faculty Selection Closed</div>
+                        <p class="status-description">@ViewBag.ScheduleMessage</p>
+                    </div>
+                </div>
+            }
+        }
+
         <div class="cards-container">
             <div class="dashboard-card">
-                <div class="card-icon">👤</div>
+                <div class="card-icon"><i class="fas fa-user"></i></div>
                 <h5 class="card-title">Student Dashboard</h5>
                 <p class="card-text">View your profile and personal details.</p>
                 <a asp-controller="Student" asp-action="Dashboard" class="glass-btn">View Profile</a>
             </div>
 
-            <div class="dashboard-card">
-                <div class="card-icon">🎓</div>
+            <div class="dashboard-card @((ViewBag.IsSelectionAvailable != null && !(bool)ViewBag.IsSelectionAvailable) ? "disabled" : "")">
+                <div class="card-icon"><i class="fas fa-graduation-cap"></i></div>
                 <h5 class="card-title">Select Subject</h5>
                 <p class="card-text">Choose subjects and faculty for the semester.</p>
-                <a asp-controller="Student" asp-action="SelectSubject" class="glass-btn">Select Now</a>
+                @if (ViewBag.IsSelectionAvailable != null && (bool)ViewBag.IsSelectionAvailable)
+                {
+                    <a asp-controller="Student" asp-action="SelectSubject" class="glass-btn">Select Now</a>
+                }
+                else
+                {
+                    <button class="glass-btn" disabled>Currently Unavailable</button>
+                }
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-icon"><i class="fas fa-book"></i></div>
+                <h5 class="card-title">My Selected Subjects</h5>
+                <p class="card-text">View all subjects you have enrolled in.</p>
+                <a asp-controller="Student" asp-action="MySelectedSubjects" class="glass-btn">View Subjects</a>
             </div>
         </div>
     </div>

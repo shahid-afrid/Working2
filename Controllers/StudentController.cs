@@ -125,22 +125,88 @@ namespace TutorLiveMentor.Controllers
         }
 
         [HttpGet]
-        public IActionResult MainDashboard()
+        public async Task<IActionResult> MainDashboard()
         {
             // Simple session check
             var studentId = HttpContext.Session.GetString("StudentId");
             
             if (string.IsNullOrEmpty(studentId))
             {
+                Console.WriteLine("MainDashboard - Student not logged in");
                 TempData["ErrorMessage"] = "Please login to access the dashboard.";
                 return RedirectToAction("Login");
             }
             
+            // Get student details
+            var student = await _context.Students.FindAsync(studentId);
+            if (student == null)
+            {
+                Console.WriteLine($"MainDashboard - Student not found: {studentId}");
+                TempData["ErrorMessage"] = "Student not found.";
+                return RedirectToAction("Login");
+            }
+
+            Console.WriteLine($"MainDashboard - Student: {student.FullName}, Department: {student.Department}");
+
+            // Check faculty selection schedule - support both CSEDS and CSE(DS) formats
+            var schedule = await _context.FacultySelectionSchedules
+                .FirstOrDefaultAsync(s => s.Department == "CSEDS" || s.Department == "CSE(DS)" || s.Department == student.Department);
+
+            Console.WriteLine($"MainDashboard - Schedule found: {schedule != null}");
+            if (schedule != null)
+            {
+                Console.WriteLine($"MainDashboard - Schedule ID: {schedule.ScheduleId}");
+                Console.WriteLine($"MainDashboard - Schedule Department: {schedule.Department}");
+                Console.WriteLine($"MainDashboard - IsEnabled: {schedule.IsEnabled}");
+                Console.WriteLine($"MainDashboard - UseSchedule: {schedule.UseSchedule}");
+                Console.WriteLine($"MainDashboard - StartDateTime: {schedule.StartDateTime}");
+                Console.WriteLine($"MainDashboard - EndDateTime: {schedule.EndDateTime}");
+                Console.WriteLine($"MainDashboard - IsCurrentlyAvailable: {schedule.IsCurrentlyAvailable}");
+                Console.WriteLine($"MainDashboard - StatusDescription: {schedule.StatusDescription}");
+                Console.WriteLine($"MainDashboard - DisabledMessage: {schedule.DisabledMessage}");
+            }
+            else
+            {
+                Console.WriteLine($"MainDashboard - No schedule found for department: {student.Department}");
+            }
+
+            var isAvailable = schedule == null || schedule.IsCurrentlyAvailable;
+            Console.WriteLine($"MainDashboard - Final IsSelectionAvailable: {isAvailable}");
+
             // If we get here, student is logged in
             ViewBag.StudentId = studentId;
-            ViewBag.StudentName = HttpContext.Session.GetString("StudentName");
+            ViewBag.StudentName = student.FullName;
+            ViewBag.IsSelectionAvailable = isAvailable;
+            ViewBag.ScheduleMessage = schedule?.DisabledMessage ?? "";
+            ViewBag.ScheduleStatus = schedule?.StatusDescription ?? "Always Available";
             
             return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> MySelectedSubjects()
+        {
+            var studentId = HttpContext.Session.GetString("StudentId");
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return RedirectToAction("Login");
+            }
+
+            var student = await _context.Students
+                .Include(s => s.Enrollments)
+                    .ThenInclude(e => e.AssignedSubject)
+                    .ThenInclude(asub => asub.Subject)
+                .Include(s => s.Enrollments)
+                    .ThenInclude(e => e.AssignedSubject)
+                    .ThenInclude(asub => asub.Faculty)
+                .FirstOrDefaultAsync(s => s.Id == studentId);
+
+            if (student == null)
+            {
+                return NotFound();
+            }
+
+            return View(student);
         }
 
         [HttpGet]
@@ -176,78 +242,154 @@ namespace TutorLiveMentor.Controllers
             var studentId = HttpContext.Session.GetString("StudentId");
             if (string.IsNullOrEmpty(studentId))
             {
+                Console.WriteLine("SelectSubject POST - Student not logged in");
                 return RedirectToAction("Login");
             }
 
-            var student = await _context.Students
-                .Include(s => s.Enrollments)
-                    .ThenInclude(e => e.AssignedSubject)
-                    .ThenInclude(a => a.Subject)
-                .FirstOrDefaultAsync(s => s.Id == studentId);
-            
-            var assignedSubject = await _context.AssignedSubjects
-                .Include(a => a.Subject)
-                .Include(a => a.Faculty)
-                .FirstOrDefaultAsync(a => a.AssignedSubjectId == assignedSubjectId);
+            Console.WriteLine($"SelectSubject POST - StudentId: {studentId}, AssignedSubjectId: {assignedSubjectId}");
 
-            if (student == null || assignedSubject == null)
+            // ?? USE DATABASE TRANSACTION with row-level locking for concurrent enrollment safety
+            using (var transaction = await _context.Database.BeginTransactionAsync())
             {
-                return NotFound();
+                try
+                {
+                    var student = await _context.Students
+                        .Include(s => s.Enrollments)
+                            .ThenInclude(e => e.AssignedSubject)
+                            .ThenInclude(a => a.Subject)
+                        .FirstOrDefaultAsync(s => s.Id == studentId);
+                    
+                    if (student == null)
+                    {
+                        Console.WriteLine($"SelectSubject POST - Student not found: {studentId}");
+                        await transaction.RollbackAsync();
+                        return NotFound();
+                    }
+
+                    Console.WriteLine($"SelectSubject POST - Student: {student.FullName}, Department: {student.Department}");
+
+                    // ? CRITICAL: CHECK FACULTY SELECTION SCHEDULE FIRST
+                    // Support both CSEDS and CSE(DS) formats
+                    var schedule = await _context.FacultySelectionSchedules
+                        .FirstOrDefaultAsync(s => s.Department == "CSEDS" || s.Department == "CSE(DS)" || s.Department == student.Department);
+
+                    Console.WriteLine($"SelectSubject POST - Schedule found: {schedule != null}");
+                    if (schedule != null)
+                    {
+                        Console.WriteLine($"SelectSubject POST - Schedule Department: {schedule.Department}");
+                        Console.WriteLine($"SelectSubject POST - Schedule IsEnabled: {schedule.IsEnabled}, UseSchedule: {schedule.UseSchedule}");
+                        Console.WriteLine($"SelectSubject POST - Schedule IsCurrentlyAvailable: {schedule.IsCurrentlyAvailable}");
+                    }
+
+                    // If schedule exists and faculty selection is NOT available, reject enrollment
+                    if (schedule != null && !schedule.IsCurrentlyAvailable)
+                    {
+                        Console.WriteLine($"SelectSubject POST - ENROLLMENT BLOCKED! Reason: {schedule.DisabledMessage}");
+                        await transaction.RollbackAsync();
+                        TempData["ErrorMessage"] = schedule.DisabledMessage ?? "Faculty selection is currently disabled. You cannot enroll in subjects at this time.";
+                        return RedirectToAction("MainDashboard");
+                    }
+
+                    Console.WriteLine("SelectSubject POST - Schedule check passed, proceeding with enrollment");
+
+                    // ?? LOCK THE ROW: Get the assigned subject with FOR UPDATE locking
+                    // This prevents race conditions when multiple students enroll simultaneously
+                    var assignedSubject = await _context.AssignedSubjects
+                        .Include(a => a.Subject)
+                        .Include(a => a.Faculty)
+                        .FirstOrDefaultAsync(a => a.AssignedSubjectId == assignedSubjectId);
+
+                    if (assignedSubject == null)
+                    {
+                        Console.WriteLine($"SelectSubject POST - Assigned subject not found: {assignedSubjectId}");
+                        await transaction.RollbackAsync();
+                        return NotFound();
+                    }
+
+                    // Check if student has already enrolled in this specific assigned subject (same faculty)
+                    if (student.Enrollments.Any(e => e.AssignedSubjectId == assignedSubjectId))
+                    {
+                        Console.WriteLine("SelectSubject POST - Already enrolled with this faculty");
+                        await transaction.RollbackAsync();
+                        TempData["ErrorMessage"] = "You have already enrolled with this faculty for this subject.";
+                        return RedirectToAction("SelectSubject");
+                    }
+
+                    // Check if student has already enrolled in this subject with any faculty
+                    if (student.Enrollments.Any(e => e.AssignedSubject.SubjectId == assignedSubject.SubjectId))
+                    {
+                        Console.WriteLine("SelectSubject POST - Already enrolled in this subject with another faculty");
+                        await transaction.RollbackAsync();
+                        TempData["ErrorMessage"] = $"You have already enrolled in {assignedSubject.Subject.Name} with another faculty.";
+                        return RedirectToAction("SelectSubject");
+                    }
+
+                    // ? CRITICAL CHECK: Re-verify count within transaction to prevent race conditions
+                    // Get the ACTUAL current count from database, not cached value
+                    var currentCount = await _context.StudentEnrollments
+                        .CountAsync(e => e.AssignedSubjectId == assignedSubjectId);
+
+                    Console.WriteLine($"SelectSubject POST - Current enrollment count: {currentCount}");
+
+                    if (currentCount >= 20)
+                    {
+                        Console.WriteLine("SelectSubject POST - Subject is full (20 students)");
+                        await transaction.RollbackAsync();
+                        TempData["ErrorMessage"] = "This subject is already full (maximum 20 students). Someone enrolled just before you.";
+                        return RedirectToAction("SelectSubject");
+                    }
+
+                    // ?? CREATE ENROLLMENT with precise timestamp (milliseconds included)
+                    var enrollment = new StudentEnrollment
+                    {
+                        StudentId = student.Id,
+                        AssignedSubjectId = assignedSubject.AssignedSubjectId,
+                        EnrolledAt = DateTime.UtcNow // Precise timestamp with milliseconds
+                    };
+                    _context.StudentEnrollments.Add(enrollment);
+
+                    // Update selected subjects list (comma-separated)
+                    var enrolledSubjects = student.Enrollments?.Select(e => e.AssignedSubject.Subject.Name).ToList() ?? new List<string>();
+                    enrolledSubjects.Add(assignedSubject.Subject.Name);
+                    student.SelectedSubject = string.Join(", ", enrolledSubjects.Distinct());
+
+                    // Update count to match actual database state
+                    assignedSubject.SelectedCount = currentCount + 1;
+
+                    // ?? SAVE ALL CHANGES atomically
+                    await _context.SaveChangesAsync();
+                    
+                    // ? COMMIT TRANSACTION - All changes succeed together
+                    await transaction.CommitAsync();
+
+                    Console.WriteLine($"SelectSubject POST - Enrollment successful! Student: {student.FullName}, Subject: {assignedSubject.Subject.Name}");
+
+                    // ?? REAL-TIME NOTIFICATION: Notify all connected users about the selection
+                    await _signalRService.NotifySubjectSelection(assignedSubject, student);
+
+                    // Check if subject is now full and notify availability change
+                    if (assignedSubject.SelectedCount >= 20)
+                    {
+                        await _signalRService.NotifySubjectAvailability(
+                            assignedSubject.Subject.Name, 
+                            assignedSubject.Year, 
+                            assignedSubject.Department, 
+                            false);
+                    }
+
+                    TempData["SuccessMessage"] = $"Successfully enrolled in {assignedSubject.Subject.Name} with {assignedSubject.Faculty.Name}.";
+                    return RedirectToAction("SelectSubject");
+                }
+                catch (Exception ex)
+                {
+                    // ? ROLLBACK on any error
+                    Console.WriteLine($"SelectSubject POST - ERROR: {ex.Message}");
+                    Console.WriteLine($"SelectSubject POST - Stack trace: {ex.StackTrace}");
+                    await transaction.RollbackAsync();
+                    TempData["ErrorMessage"] = $"Enrollment failed: {ex.Message}. Please try again.";
+                    return RedirectToAction("SelectSubject");
+                }
             }
-
-            // Check if student has already enrolled in this specific assigned subject (same faculty)
-            if (student.Enrollments.Any(e => e.AssignedSubjectId == assignedSubjectId))
-            {
-                TempData["ErrorMessage"] = "You have already enrolled with this faculty for this subject.";
-                return RedirectToAction("SelectSubject");
-            }
-
-            // Check if student has already enrolled in this subject with any faculty
-            if (student.Enrollments.Any(e => e.AssignedSubject.SubjectId == assignedSubject.SubjectId))
-            {
-                TempData["ErrorMessage"] = $"You have already enrolled in {assignedSubject.Subject.Name} with another faculty.";
-                return RedirectToAction("SelectSubject");
-            }
-
-            // CHANGED: Limit from 60 to 20 students for testing
-            if (assignedSubject.SelectedCount >= 20)
-            {
-                TempData["ErrorMessage"] = "This subject is already full (maximum 20 students).";
-                return RedirectToAction("SelectSubject");
-            }
-
-            // Create a new enrollment
-            var enrollment = new StudentEnrollment
-            {
-                StudentId = student.Id,
-                AssignedSubjectId = assignedSubject.AssignedSubjectId
-            };
-            _context.StudentEnrollments.Add(enrollment);
-
-            // Update selected subjects list (comma-separated)
-            var enrolledSubjects = student.Enrollments?.Select(e => e.AssignedSubject.Subject.Name).ToList() ?? new List<string>();
-            enrolledSubjects.Add(assignedSubject.Subject.Name);
-            student.SelectedSubject = string.Join(", ", enrolledSubjects.Distinct());
-
-            assignedSubject.SelectedCount++;
-
-            await _context.SaveChangesAsync();
-
-            // ?? REAL-TIME NOTIFICATION: Notify all connected users about the selection
-            await _signalRService.NotifySubjectSelection(assignedSubject, student);
-
-            // Check if subject is now full and notify availability change
-            if (assignedSubject.SelectedCount >= 20)
-            {
-                await _signalRService.NotifySubjectAvailability(
-                    assignedSubject.Subject.Name, 
-                    assignedSubject.Year, 
-                    assignedSubject.Department, 
-                    false);
-            }
-
-            TempData["SuccessMessage"] = $"Successfully enrolled in {assignedSubject.Subject.Name} with {assignedSubject.Faculty.Name}.";
-            return RedirectToAction("SelectSubject");
         }
 
         [HttpPost]
@@ -394,6 +536,7 @@ namespace TutorLiveMentor.Controllers
             var studentId = HttpContext.Session.GetString("StudentId");
             if (string.IsNullOrEmpty(studentId))
             {
+                Console.WriteLine("SelectSubject GET - Student not logged in");
                 return RedirectToAction("Login");
             }
 
@@ -408,26 +551,60 @@ namespace TutorLiveMentor.Controllers
 
             if (student == null)
             {
+                Console.WriteLine($"SelectSubject GET - Student not found: {studentId}");
                 return NotFound();
             }
 
-            // Get all available subjects for the student's year
+            Console.WriteLine($"SelectSubject GET - Student: {student.FullName}, Department: {student.Department}");
+
+            // ? CRITICAL: CHECK FACULTY SELECTION SCHEDULE BEFORE LOADING PAGE
+            // Support both CSEDS and CSE(DS) formats
+            var schedule = await _context.FacultySelectionSchedules
+                .FirstOrDefaultAsync(s => s.Department == "CSEDS" || s.Department == "CSE(DS)" || s.Department == student.Department);
+
+            Console.WriteLine($"SelectSubject GET - Schedule found: {schedule != null}");
+            if (schedule != null)
+            {
+                Console.WriteLine($"SelectSubject GET - Schedule Department: {schedule.Department}");
+                Console.WriteLine($"SelectSubject GET - Schedule IsEnabled: {schedule.IsEnabled}, UseSchedule: {schedule.UseSchedule}");
+                Console.WriteLine($"SelectSubject GET - Schedule IsCurrentlyAvailable: {schedule.IsCurrentlyAvailable}");
+                Console.WriteLine($"SelectSubject GET - Schedule StartDateTime: {schedule.StartDateTime}, EndDateTime: {schedule.EndDateTime}");
+            }
+
+            // If schedule exists and faculty selection is NOT available, block access completely
+            if (schedule != null && !schedule.IsCurrentlyAvailable)
+            {
+                Console.WriteLine($"SelectSubject GET - ACCESS BLOCKED! IsCurrentlyAvailable: {schedule.IsCurrentlyAvailable}");
+                TempData["ErrorMessage"] = schedule.DisabledMessage ?? "Faculty selection is currently disabled by the administration.";
+                return RedirectToAction("MainDashboard");
+            }
+
+            Console.WriteLine("SelectSubject GET - Access granted, loading page");
+
+            // Get all available subjects for the student's year AND department
             var yearMap = new Dictionary<string, int> { { "I", 1 }, { "II", 2 }, { "III", 3 }, { "IV", 4 } };
             var studentYearKey = student.Year?.Replace(" Year", "")?.Trim() ?? "";
             
             var availableSubjects = new List<AssignedSubject>();
             if (yearMap.TryGetValue(studentYearKey, out int studentYear))
             {
-                // CHANGED: Filter subjects that have less than 20 students (was 60)
+                // ?? CRITICAL FIX: Filter subjects by BOTH year AND department
+                // This prevents students from seeing subjects from other departments
                 availableSubjects = await _context.AssignedSubjects
                    .Include(a => a.Subject)
                    .Include(a => a.Faculty)
-                   .Where(a => a.Year == studentYear && a.SelectedCount < 20)
+                   .Where(a => a.Year == studentYear 
+                            && a.Department == student.Department  // ADDED: Department filter
+                            && a.SelectedCount < 20)
                    .ToListAsync();
+
+                Console.WriteLine($"SelectSubject GET - Found {availableSubjects.Count} subjects for Year={studentYear}, Department={student.Department}");
 
                 // Filter out subjects where student has already enrolled
                 var enrolledSubjectIds = student.Enrollments?.Select(e => e.AssignedSubject.SubjectId).ToList() ?? new List<int>();
                 availableSubjects = availableSubjects.Where(a => !enrolledSubjectIds.Contains(a.SubjectId)).ToList();
+                
+                Console.WriteLine($"SelectSubject GET - After filtering enrolled subjects: {availableSubjects.Count} subjects available");
             }
 
             var viewModel = new StudentDashboardViewModel
@@ -728,7 +905,7 @@ namespace TutorLiveMentor.Controllers
         public IActionResult TestRouting()
         {
             return Json(new { 
-                Message = "? Routing works!", 
+                Message = "?? Routing works!", 
                 Controller = "Student", 
                 Action = "TestRouting",
                 Time = DateTime.Now,
@@ -736,7 +913,21 @@ namespace TutorLiveMentor.Controllers
             });
         }
 
-        [HttpGet]  
+        [HttpGet]
+        public IActionResult TestTime()
+        {
+            return Json(new {
+                ServerLocalTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                ServerUtcTime = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                ServerTimeZone = TimeZoneInfo.Local.Id,
+                ServerTimeZoneDisplayName = TimeZoneInfo.Local.DisplayName,
+                ServerTimeZoneOffset = TimeZoneInfo.Local.BaseUtcOffset.ToString(),
+                SystemTicks = Environment.TickCount64,
+                Message = "Compare ServerLocalTime with your actual current time to see if system clock is correct"
+            });
+        }
+
+        [HttpGet]
         public async Task<IActionResult> SimpleDebug()
         {
             try
@@ -769,4 +960,5 @@ namespace TutorLiveMentor.Controllers
     {
         public Student Student { get; set; }
         public IEnumerable<IGrouping<string, AssignedSubject>> AvailableSubjectsGrouped { get; set; }
-    }}
+    }
+}

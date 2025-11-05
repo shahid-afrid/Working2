@@ -120,6 +120,31 @@ namespace TutorLiveMentor.Models
     }
 
     /// <summary>
+    /// Simple view model for subject operations (alias for CSEDSSubjectViewModel)
+    /// </summary>
+    public class SubjectViewModel
+    {
+        public int SubjectId { get; set; }
+
+        [Required(ErrorMessage = "Subject name is required")]
+        public string Name { get; set; } = string.Empty;
+
+        public string Department { get; set; } = "CSEDS";
+
+        [Required(ErrorMessage = "Year is required")]
+        public int Year { get; set; }
+
+        [Required(ErrorMessage = "Semester is required")]
+        public string Semester { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Semester start date is required")]
+        public DateTime? SemesterStartDate { get; set; }
+
+        [Required(ErrorMessage = "Semester end date is required")]
+        public DateTime? SemesterEndDate { get; set; }
+    }
+
+    /// <summary>
     /// Represents semester options with roman numerals
     /// </summary>
     public class SemesterOption
@@ -209,8 +234,9 @@ namespace TutorLiveMentor.Models
         public string StudentYear { get; set; } = string.Empty;
         public string SubjectName { get; set; } = string.Empty;
         public string FacultyName { get; set; } = string.Empty;
-        public string FacultyEmail { get; set; } = string.Empty;
+        public string FacultyEmail { get; set; } = string.Empty; // Kept for backward compatibility but won't be displayed
         public DateTime EnrollmentDate { get; set; }
+        public DateTime EnrolledAt { get; set; } // Precise enrollment timestamp with milliseconds
         public string Semester { get; set; } = string.Empty;
     }
 
@@ -391,6 +417,30 @@ namespace TutorLiveMentor.Models
     }
 
     /// <summary>
+    /// Export request with column selection
+    /// </summary>
+    public class ExportRequest
+    {
+        public List<EnrollmentReportDto> ReportData { get; set; } = new List<EnrollmentReportDto>();
+        public ColumnSelection SelectedColumns { get; set; } = new ColumnSelection();
+    }
+
+    /// <summary>
+    /// Column selection for report exports
+    /// </summary>
+    public class ColumnSelection
+    {
+        public bool StudentName { get; set; } = true;
+        public bool RegdNumber { get; set; } = true;
+        public bool Email { get; set; } = true;
+        public bool Year { get; set; } = true;
+        public bool Subject { get; set; } = true;
+        public bool Faculty { get; set; } = true;
+        public bool Semester { get; set; } = true;
+        public bool EnrollmentTime { get; set; } = true;
+    }
+
+    /// <summary>
     /// Import/Export models
     /// </summary>
     public class FacultyImportModel
@@ -553,4 +603,9 @@ namespace TutorLiveMentor.Models
         public string Year { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
     }
+
+    /// <summary>
+    /// View model for Faculty Selection Schedule management
+    /// </summary>
+
 }

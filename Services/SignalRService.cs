@@ -21,7 +21,7 @@ namespace TutorLiveMentor.Services
             {
                 var groupName = $"{assignedSubject.Subject.Name}_{assignedSubject.Year}_{assignedSubject.Department}";
                 
-                await _hubContext.Clients.Group(groupName).SendAsync("SubjectSelectionUpdated", new
+                var notificationData = new
                 {
                     AssignedSubjectId = assignedSubject.AssignedSubjectId,
                     SubjectName = assignedSubject.Subject.Name,
@@ -31,9 +31,18 @@ namespace TutorLiveMentor.Services
                     FacultyName = assignedSubject.Faculty.Name,
                     StudentName = student.FullName,
                     Timestamp = DateTime.Now,
-                    IsFull = assignedSubject.SelectedCount >= 60,
+                    IsFull = assignedSubject.SelectedCount >= 20,
                     Message = $"{student.FullName} enrolled with {assignedSubject.Faculty.Name}"
-                });
+                };
+
+                _logger.LogInformation($"?? Sending SignalR notification to group '{groupName}'");
+                _logger.LogInformation($"   AssignedSubjectId: {notificationData.AssignedSubjectId}");
+                _logger.LogInformation($"   NewCount: {notificationData.NewCount}");
+                _logger.LogInformation($"   IsFull: {notificationData.IsFull}");
+                _logger.LogInformation($"   Student: {notificationData.StudentName}");
+                _logger.LogInformation($"   Faculty: {notificationData.FacultyName}");
+                
+                await _hubContext.Clients.Group(groupName).SendAsync("SubjectSelectionUpdated", notificationData);
 
                 // Notify all faculty
                 await _hubContext.Clients.Group("Faculty").SendAsync("StudentEnrollmentChanged", new
@@ -47,11 +56,11 @@ namespace TutorLiveMentor.Services
                     Timestamp = DateTime.Now
                 });
 
-                _logger.LogInformation($"SignalR: Notified selection - {student.FullName} -> {assignedSubject.Faculty.Name}");
+                _logger.LogInformation($"? SignalR notification sent successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending SignalR notification for subject selection");
+                _logger.LogError(ex, "? Error sending SignalR notification for subject selection");
             }
         }
 
@@ -61,7 +70,7 @@ namespace TutorLiveMentor.Services
             {
                 var groupName = $"{assignedSubject.Subject.Name}_{assignedSubject.Year}_{assignedSubject.Department}";
                 
-                await _hubContext.Clients.Group(groupName).SendAsync("SubjectUnenrollmentUpdated", new
+                var notificationData = new
                 {
                     AssignedSubjectId = assignedSubject.AssignedSubjectId,
                     SubjectName = assignedSubject.Subject.Name,
@@ -73,7 +82,15 @@ namespace TutorLiveMentor.Services
                     Timestamp = DateTime.Now,
                     IsFull = false,
                     Message = $"{student.FullName} unenrolled from {assignedSubject.Faculty.Name}"
-                });
+                };
+
+                _logger.LogInformation($"?? Sending SignalR unenrollment notification to group '{groupName}'");
+                _logger.LogInformation($"   AssignedSubjectId: {notificationData.AssignedSubjectId}");
+                _logger.LogInformation($"   NewCount: {notificationData.NewCount}");
+                _logger.LogInformation($"   Student: {notificationData.StudentName}");
+                _logger.LogInformation($"   Faculty: {notificationData.FacultyName}");
+                
+                await _hubContext.Clients.Group(groupName).SendAsync("SubjectUnenrollmentUpdated", notificationData);
 
                 // Notify all faculty
                 await _hubContext.Clients.Group("Faculty").SendAsync("StudentEnrollmentChanged", new
@@ -87,11 +104,11 @@ namespace TutorLiveMentor.Services
                     Timestamp = DateTime.Now
                 });
 
-                _logger.LogInformation($"SignalR: Notified unenrollment - {student.FullName} from {assignedSubject.Faculty.Name}");
+                _logger.LogInformation($"? SignalR unenrollment notification sent successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending SignalR notification for subject unenrollment");
+                _logger.LogError(ex, "? Error sending SignalR notification for subject unenrollment");
             }
         }
 
@@ -108,11 +125,11 @@ namespace TutorLiveMentor.Services
                     Timestamp = DateTime.Now
                 });
 
-                _logger.LogInformation($"SignalR: User activity - {userName} ({userType}): {action}");
+                _logger.LogInformation($"?? SignalR: User activity - {userName} ({userType}): {action}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending SignalR user activity notification");
+                _logger.LogError(ex, "? Error sending SignalR user activity notification");
             }
         }
 
@@ -127,11 +144,11 @@ namespace TutorLiveMentor.Services
                     Timestamp = DateTime.Now
                 });
 
-                _logger.LogInformation($"SignalR: System notification ({type}): {message}");
+                _logger.LogInformation($"?? SignalR: System notification ({type}): {message}");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending SignalR system notification");
+                _logger.LogError(ex, "? Error sending SignalR system notification");
             }
         }
 
@@ -140,6 +157,8 @@ namespace TutorLiveMentor.Services
             try
             {
                 var groupName = $"{subjectName}_{year}_{department}";
+                
+                _logger.LogInformation($"?? Sending availability change notification to group '{groupName}': {(isAvailable ? "Available" : "Full")}");
                 
                 await _hubContext.Clients.Group(groupName).SendAsync("SubjectAvailabilityChanged", new
                 {
@@ -150,10 +169,12 @@ namespace TutorLiveMentor.Services
                     Message = isAvailable ? "Seats are now available!" : "Subject is now full!",
                     Timestamp = DateTime.Now
                 });
+
+                _logger.LogInformation($"? Availability notification sent successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending SignalR availability notification");
+                _logger.LogError(ex, "? Error sending SignalR availability notification");
             }
         }
     }
